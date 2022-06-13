@@ -234,6 +234,15 @@ sourceSets {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
         force "io.netty:netty-transport-native-unix-common:${versions.netty}"
+        }
+}
+
+//create source set 'newTest'
+//add classes from the main source set to the compilation and runtime classpaths of the newTest
+sourceSets {
+    newTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
     }
 }
 
