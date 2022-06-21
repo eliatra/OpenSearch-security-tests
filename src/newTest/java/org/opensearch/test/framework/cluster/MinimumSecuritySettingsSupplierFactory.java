@@ -28,27 +28,92 @@
 
 package org.opensearch.test.framework.cluster;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
 
 import org.opensearch.common.settings.Settings;
+import org.opensearch.test.framework.certificate.TestCertificates;
 
 public class MinimumSecuritySettingsSupplierFactory {
 
-    private final String resourceFolder;  
+	private TestCertificates testCertificates;
 
-    public MinimumSecuritySettingsSupplierFactory(String resourceFolder) {
-        this.resourceFolder = resourceFolder;
-    }
+	public MinimumSecuritySettingsSupplierFactory(TestCertificates testCertificates) {
+		if (testCertificates == null) {
+			throw new IllegalArgumentException("certificates must not be null");
+		}
+		this.testCertificates = testCertificates;
 
-    public NodeSettingsSupplier minimumOpenSearchSettings(Settings other) {
-        return i -> minimumOpenSearchSettingsBuilder(i, false).put(other).build();
-    }
+	}
 
-    public NodeSettingsSupplier minimumOpenSearchSettingsSslOnly(Settings other) {
-        return i -> minimumOpenSearchSettingsBuilder(i, true).put(other).build();
-    }
+	public NodeSettingsSupplier minimumOpenSearchSettings(Settings other) {
+		return i -> minimumOpenSearchSettingsBuilder(i, false).put(other).build();
+	}
 
-    private Settings.Builder minimumOpenSearchSettingsBuilder(int node, boolean sslOnly) {
-    	// TODO: Implement with SSL
-    	return null;
-    }
+	public NodeSettingsSupplier minimumOpenSearchSettingsSslOnly(Settings other) {
+		return i -> minimumOpenSearchSettingsBuilder(i, true).put(other).build();
+	}
+
+	private Settings.Builder minimumOpenSearchSettingsBuilder(int node, boolean sslOnly) {
+
+		Settings.Builder builder = Settings.builder();
+		
+		
+		try {
+			builder.put("plugins.security.ssl.transport.pemtrustedcas_filepath", testCertificates.getRootCertificate().getAbsolutePath());			
+			builder.put("plugins.security.ssl.transport.pemcert_filepath", testCertificates.getNodeCertificate(node).getAbsolutePath());
+			builder.put("plugins.security.ssl.transport.pemkey_filepath", testCertificates.getNodeKey(node).getAbsolutePath());
+						
+			builder.put("plugins.security.ssl.http.pemtrustedcas_filepath", testCertificates.getRootCertificate().getAbsolutePath());
+			builder.put("plugins.security.ssl.http.pemcert_filepath", testCertificates.getNodeCertificate(node).getAbsolutePath());
+			builder.put("plugins.security.ssl.http.pemkey_filepath", testCertificates.getNodeKey(node).getAbsolutePath());
+			
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Invalid test certificates provided on local cluster start");
+		}
+//
+//            if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport) {
+//                builder.put("searchguard.ssl.transport.pemcert_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+//                        .put("searchguard.ssl.transport.pemkey_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
+//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
+//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
+//            } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_rest) {
+//                builder.put("searchguard.ssl.http.pemcert_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+//                        .put("searchguard.ssl.http.pemkey_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
+//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
+//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
+//            } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport_rest) {
+//                builder.put("searchguard.ssl.transport.pemcert_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+//                        .put("searchguard.ssl.transport.pemkey_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
+//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
+//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
+//
+//                builder.put("searchguard.ssl.http.pemcert_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+//                        .put("searchguard.ssl.http.pemkey_filepath",
+//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
+//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
+//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
+//            }
+//
+//            builder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
+//
+//                String adminClientDn = certificatesContext.getAdminCertificate().getCertificate().getSubject().toString();
+//                builder.putList("searchguard.authcz.admin_dn", adminClientDn);
+//                builder.put("searchguard.background_init_if_sgindex_not_exist", false);
+//                builder.put("searchguard.ssl_only", false);
+
+		return builder;
+
+	}
 }

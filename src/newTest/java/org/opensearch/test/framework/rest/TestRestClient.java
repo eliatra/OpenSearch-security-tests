@@ -65,9 +65,9 @@ import org.opensearch.common.xcontent.ToXContentObject;
 
 import com.google.common.collect.Lists;
 
-public class ITRestClient implements AutoCloseable {
+public class TestRestClient implements AutoCloseable {
 	
-    private static final Logger log = LogManager.getLogger(ITRestClient.class);
+    private static final Logger log = LogManager.getLogger(TestRestClient.class);
 
     public boolean enableHTTPClientSSL = true;
     public boolean enableHTTPClientSSLv3Only = false;
@@ -85,13 +85,13 @@ public class ITRestClient implements AutoCloseable {
     private Set<String> puttedResourcesSet = new HashSet<>();
     private List<String> puttedResourcesList = new ArrayList<>();
 
-    public ITRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, String prefix) {
+    public TestRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, String prefix) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.headers.addAll(headers);
         this.prefix = prefix;
     }
 
-    public ITRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
+    public TestRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.enableHTTPClientSSL = enableHTTPClientSSL;
         this.trustHTTPServerCertificate = trustHTTPServerCertificate;
@@ -194,7 +194,7 @@ public class ITRestClient implements AutoCloseable {
         }
     }
 
-    public ITRestClient trackResources() {
+    public TestRestClient trackResources() {
         trackResources = true;
         return this;
     }

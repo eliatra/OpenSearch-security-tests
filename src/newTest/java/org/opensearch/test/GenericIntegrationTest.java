@@ -18,8 +18,8 @@ import org.junit.Test;
 import org.opensearch.test.framework.TestSecurityConfig;
 import org.opensearch.test.framework.TestSecurityConfig.Role;
 import org.opensearch.test.framework.cluster.LocalCluster;
-import org.opensearch.test.framework.rest.ITRestClient;
-import org.opensearch.test.framework.rest.ITRestClient.HttpResponse;
+import org.opensearch.test.framework.rest.TestRestClient;
+import org.opensearch.test.framework.rest.TestRestClient.HttpResponse;
 
 public class GenericIntegrationTest {
 
@@ -27,12 +27,11 @@ public class GenericIntegrationTest {
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().user(ADMIN_USER).build();
 
     @Test
     public void basicTest() throws Exception {
-        try (ITRestClient client = cluster.getRestClient(ADMIN_USER)) {
-
+        try (TestRestClient client = cluster.getRestClient(ADMIN_USER)) {
             HttpResponse response = client.get("_opendistro/_security/health?pretty");
             Assert.assertEquals(response.getStatusCode(), HttpStatus.SC_OK);
         }

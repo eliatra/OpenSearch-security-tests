@@ -80,12 +80,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
             List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
+        this.testCertificates = testCertificates;
         this.clusterConfiguration = clusterConfiguration;
         this.testSgConfig = testSgConfig;
         this.nodeOverride = nodeOverride;
         this.clusterName = clusterName;
-        this.minimumOpenSearchSettingsSupplierFactory = new MinimumSecuritySettingsSupplierFactory(resourceFolder);
-        this.testCertificates = testCertificates;
+        this.minimumOpenSearchSettingsSupplierFactory = new MinimumSecuritySettingsSupplierFactory(testCertificates);
         this.remotes = remotes;
         this.clusterDependencies = clusterDependencies;
     }
@@ -231,11 +231,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
     private void start() {
         try {
-        	// TODO: adapt constructor
-//            localEsCluster = new LocalOpenSearchCluster(clusterName, clusterConfiguration,
-//                    minimumOpenSearchSettingsSupplierFactory.minimumOpenSearchSettings(nodeOverride), plugins, testCertificates);
-            
-            localOpenSearchCluster = new LocalOpenSearchCluster(clusterName, clusterConfiguration, null, plugins, testCertificates);
+        	localOpenSearchCluster = new LocalOpenSearchCluster(clusterName, clusterConfiguration,
+                    minimumOpenSearchSettingsSupplierFactory.minimumOpenSearchSettings(nodeOverride), plugins, testCertificates);
 
             localOpenSearchCluster.start();
 
@@ -260,26 +257,14 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         private final List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private Map<String, LocalCluster> remoteClusters = new HashMap<>();
         private List<LocalCluster> clusterDependencies = new ArrayList<>();
-        private boolean sslEnabled;
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
         private TestSecurityConfig testSgConfig = new TestSecurityConfig().resources("/");
         private String clusterName = "local_cluster";
         private TestCertificates testCertificates;
-        private boolean enterpriseModulesEnabled;
-
-        public Builder sslEnabled() {
-        	// TODO enable SSL
-//            sslEnabled(TestCertificates.builder().ca("CN=root.ca.example.com,OU=OpenSearch,O=OpenSearch")
-//                    .addNodes("CN=node-0.example.com,OU=OpenSearch,O=OpenSearch").addClients("CN=client-0.example.com,OU=OpenSearch,O=OpenSearch")
-//                    .addAdminClients("CN=admin-0.example.com,OU=OpenSearch,O=OpenSearch").build());
-            return this;
-        }
-
-        public Builder sslEnabled(TestCertificates certificatesContext) {
-            this.testCertificates = certificatesContext;
-            this.sslEnabled = true;
-            return this;
+        
+        public Builder() {
+        	this.testCertificates = new TestCertificates();
         }
 
         public Builder dependsOn(Object object) {
@@ -388,10 +373,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
             return this;
         }
 
-        public Builder authc(TestSecurityConfig.Authc authc) {
-            testSgConfig.authc(authc);
-            return this;
-        }
+//        public Builder authc(TestSecurityConfig.Authc authc) {
+//            testSgConfig.authc(authc);
+//            return this;
+//        }
 
         public Builder dlsFls(TestSecurityConfig.DlsFls dlsfls) {
             testSgConfig.dlsFls(dlsfls);
@@ -415,12 +400,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
         public LocalCluster build() {
             try {
-//                if (sslEnabled) {
-//                    nodeOverrideSettingsBuilder.put("OpenSearch.ssl.http.enabled", true)
-//                            .put("OpenSearch.ssl.transport.pemtrustedcas_filepath", testCertificates.getCaCertFile().getPath())
-//                            .put("OpenSearch.ssl.http.pemtrustedcas_filepath", testCertificates.getCaCertFile().getPath());
-//
-//                }
 
                 clusterName += "_" + num.incrementAndGet();
 

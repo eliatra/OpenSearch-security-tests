@@ -17,7 +17,37 @@
 
 package org.opensearch.test.framework.certificate;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 public class TestCertificates {
 
+    public File getRootCertificate() throws IOException {
+    	return createTempFile("root", ".cert", Certificates.ROOT_CA_CERTIFICATE);
+    }
 
+    public File getNodeCertificate(int node) throws IOException {
+    	return createTempFile("node-" + node, ".cert", Certificates.NODE_CERTIFICATE);
+    }
+
+    public File getNodeKey(int node) throws IOException {
+    	return createTempFile("node-" + node, ".key", Certificates.NODE_KEY);
+    }
+
+    public File getAdminCertificate() throws IOException {
+    	return createTempFile("admin", ".cert", Certificates.ADMIN_CERTIFICATE);
+    }
+
+    public File getAdminKey() throws IOException {
+    	return createTempFile("admin", ".key", Certificates.ADMIN_KEY);
+    }
+
+    private File createTempFile(String name, String suffix, String contents) throws IOException {
+    	Path path = Files.createTempFile(name, suffix);
+    	Files.writeString(path, contents);
+    	return path.toFile();
+    	
+    }
 }

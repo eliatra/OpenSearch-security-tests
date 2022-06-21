@@ -42,7 +42,7 @@ import java.util.stream.Stream;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.opensearch.test.framework.certificate.TestCertificates;
-import org.opensearch.test.framework.rest.ITRestClient;
+import org.opensearch.test.framework.rest.TestRestClient;
 
 
 public interface OpenSearchClientProvider {
@@ -68,15 +68,15 @@ public interface OpenSearchClientProvider {
 //        return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAnyClientCertificate());
 //    }
 
-    default ITRestClient getRestClient(UserCredentialsHolder user, Header... headers) {
+    default TestRestClient getRestClient(UserCredentialsHolder user, Header... headers) {
         return getRestClient(user.getName(), user.getPassword(), headers);
     }
 
-    default ITRestClient getRestClient(String user, String password, String tenant) {
+    default TestRestClient getRestClient(String user, String password, String tenant) {
         return getRestClient(user, password, new BasicHeader("sgtenant", tenant));
     }
 
-    default ITRestClient getRestClient(String user, String password, Header... headers) {
+    default TestRestClient getRestClient(String user, String password, Header... headers) {
         BasicHeader basicAuthHeader = getBasicAuthHeader(user, password);
         if (headers != null && headers.length > 0) {
             List<Header> concatenatedHeaders = Stream.concat(Stream.of(basicAuthHeader), Stream.of(headers)).collect(Collectors.toList());
@@ -85,29 +85,29 @@ public interface OpenSearchClientProvider {
         return getRestClient(basicAuthHeader);
     }
 
-    default ITRestClient getRestClient(Header... headers) {
+    default TestRestClient getRestClient(Header... headers) {
         return getRestClient(Arrays.asList(headers));
     }
 
-    default ITRestClient getRestClient(List<Header> headers) {
+    default TestRestClient getRestClient(List<Header> headers) {
         return createGenericClientRestClient(headers);
     }
 
-    default ITRestClient getAdminCertRestClient() {
+    default TestRestClient getAdminCertRestClient() {
         return createGenericAdminRestClient(Collections.emptyList());
     }
 
-    default ITRestClient createGenericClientRestClient(List<Header> headers) {
+    default TestRestClient createGenericClientRestClient(List<Header> headers) {
     	// TODO: SSL
     	// return new ITRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
-    	return new ITRestClient(getHttpAddress(), headers, "");
+    	return new TestRestClient(getHttpAddress(), headers, "");
     }
 
-    default ITRestClient createGenericAdminRestClient(List<Header> headers) {
+    default TestRestClient createGenericAdminRestClient(List<Header> headers) {
         //a client authentication is needed for admin because admin needs to authenticate itself (dn matching in config file)
     	// TODO: SSL
 //        return new ITRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
-    	return new ITRestClient(getHttpAddress(), headers, "");
+    	return new TestRestClient(getHttpAddress(), headers, "");
     }
 
     default BasicHeader getBasicAuthHeader(String user, String password) {
