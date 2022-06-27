@@ -28,7 +28,6 @@
 
 package org.opensearch.test.framework;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -51,10 +50,8 @@ import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.opensearch.client.Client;
 import org.opensearch.common.Strings;
 import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.security.action.configupdate.ConfigUpdateAction;
 import org.opensearch.security.action.configupdate.ConfigUpdateRequest;
 import org.opensearch.security.action.configupdate.ConfigUpdateResponse;
@@ -74,7 +71,6 @@ public class TestSecurityConfig {
 	private NestedValueMap overrideRoleMappingSettings;
 	private AuthcDomain authc;
 	private DlsFls dlsFls;
-//	private Privileges privileges;
 	private String indexName = ".opendistro_security";
 	private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
 
@@ -249,9 +245,6 @@ public class TestSecurityConfig {
 	public TestSecurityConfig roleToRoleMapping(Role role, String... backendRoles) {
 		return this.roleMapping(new RoleMapping(role.name).backendRoles(backendRoles));
 	}
-	
-	
-	// -----------
 
 	public static class User implements UserCredentialsHolder {
 		private String name;
@@ -551,16 +544,6 @@ public class TestSecurityConfig {
         }
     }
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	public static class DlsFls {
 
 		private Boolean debug;
@@ -576,36 +559,7 @@ public class TestSecurityConfig {
 			return this;
 		}
 
-//		// @Override
-//		public Object toBasicObject() {
-//			return ImmutableMap.of("default", ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl",
-//					useImpl, "dls", ImmutableMap.ofNonNull("allow_now", dlsAllowNow)));
-//		}
 	}
-
-//	public static class Privileges {
-//		private boolean ignoreUnauthorizedIndices = true;
-//
-//		public Privileges() {
-//
-//		}
-//
-//		public boolean isIgnoreUnauthorizedIndices() {
-//			return ignoreUnauthorizedIndices;
-//		}
-//
-//		public Privileges ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
-//			this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
-//			return this;
-//		}
-//
-//		// @Override
-//		public Object toBasicObject() {
-//			return ImmutableMap.of("default",
-//					ImmutableMap.of("ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices));
-//		}
-//	}
-
 
     public TestSecurityConfig clone() {
         TestSecurityConfig result = new TestSecurityConfig();
@@ -641,67 +595,6 @@ public class TestSecurityConfig {
 		}
 	}
 
-//	private void writeOptionalConfigToIndex(Client client, CType configType, String file, NestedValueMap overrides) {
-//
-//		NestedValueMap map = new NestedValueMap();
-//		NestedValueMap typeVersion = new NestedValueMap();
-//		
-//		typeVersion.put("type", configType.toLCString());
-//		typeVersion.put("config_version", 2);
-//		
-//		map.put("_meta", typeVersion);
-//		
-//		if (overrides != null) {
-//			map.putAllFromAnyMap(overrides);			
-//		}
-//		
-//		XContentBuilder builder;
-//		String json;
-//
-//		// todo merge maps. Or, just use overrides?
-//
-//		try {
-//			builder = XContentFactory.jsonBuilder(); //.startObject();
-//			builder.map(map);
-//			json = Strings.toString(builder);
-//			log.info("Writing " + configType + ":\n" + json);
-//
-//			client.index(new IndexRequest(indexName).id(configType.toLCString())
-//					.setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType.toLCString(),
-//							BytesReference.fromByteBuffer(ByteBuffer.wrap(json.getBytes("utf-8")))))
-//					.actionGet();
-//		} catch (Exception e) {
-//			throw new RuntimeException("Error while initializing config for " + indexName, e);
-//		}
-//
-		// try {
-//      DocNode config = null;
-//
-//      if (resourceFolder != null) {
-//          try {
-//              config = DocNode.parse(Format.YAML).from(openFile(file));
-//          } catch (FileNotFoundException e) {
-//              // ignore
-//          }
-//      }
-//
-//      if (config == null) {
-//          config = DocNode.of("_sg_meta.type", configType.toLCString(), "_sg_meta.config_version", 2);
-//      }
-//
-//      if (overrides != null) {
-//          config = new MergePatch(DocNode.wrap(overrides)).apply(config);
-//      }
-//
-//      log.info("Writing " + configType + ":\n" + config.toYamlString());
-//
-//      client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-//              .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
-//              .actionGet();
-//  } catch (Exception e) {
-//      throw new RuntimeException("Error while initializing config for " + indexName, e);
-//  }
-//	}
 
 	private static String hash(final char[] clearTextPassword) {
 		final byte[] salt = new byte[16];
@@ -741,375 +634,3 @@ public class TestSecurityConfig {
 		}
 	}
 }
-
-////
-
-////
-////    private void writeOptionalConfigToIndex(Client client, String configType, String file, NestedValueMap overrides) {
-////        try {
-////            NestedValueMap config = null;
-////
-////            if (resourceFolder != null) {
-////                try {
-////                    config = NestedValueMap.fromYaml(openFile(file));
-////                } catch (FileNotFoundException e) {
-////                    // ingore
-////                }
-////            }
-////
-////            if (config == null) {
-////                config = NestedValueMap.of(new NestedValueMap.Path("meta", "type"), configType,
-////                        new NestedValueMap.Path("meta", "config_version"), 2);
-////            }
-////
-////            if (overrides != null) {
-////                config.overrideLeafs(overrides);
-////            }
-////
-////            log.info("Writing " + configType + ":\n" + config.toYamlString());
-////
-////            client.index(new IndexRequest(indexName).id(configType).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType,
-////                    BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8"))))).actionGet();
-////        } catch (Exception e) {
-////            throw new RuntimeException("Error while initializing config for " + indexName, e);
-////        }
-////    }
-////
-////    private void writeConfigToIndex(Client client, CType<?> configType, Document<?> document) {
-////        try {
-////            log.info("Writing " + configType + ":\n" + document.toYamlString());
-////
-////            client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-////                    .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8")))))
-////                    .actionGet();
-////        } catch (Exception e) {
-////            throw new RuntimeException("Error while initializing config for " + indexName, e);
-////        }
-////    }
-////
-////    private void writeConfigToIndex(Client client, String configType, Document<?> document) {
-////        try {
-////            log.info("Writing " + configType + ":\n" + document.toYamlString());
-////
-////            client.index(new IndexRequest(indexName).id(configType).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType,
-////                    BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8"))))).actionGet();
-////        } catch (Exception e) {
-////            throw new RuntimeException("Error while initializing config for " + indexName, e);
-////        }
-////    }
-//
-
-//    public static class Authc {
-//
-//        private List<Domain> domains;
-//        private List<String> trustedProxies;
-//
-//        public Authc(Domain... domains) {
-//            this.domains = ImmutableList.ofArray(domains);
-//        }
-//
-//        public Authc trustedProxies(String... trustedProxies) {
-//            this.trustedProxies = Arrays.asList(trustedProxies);
-//            return this;
-//        }
-//
-//        public static class Domain {
-//
-//            private final String type;
-//            private String id;
-//            private String description;
-//            private List<String> acceptIps = null;
-//            private List<String> skipIps = null;
-//            private List<String> acceptUsers = null;
-//            private List<String> skipUsers = null;
-//            private List<AdditionalUserInformation> additionalUserInformation = null;
-//            private UserMapping userMapping;
-//            private DocNode backendConfig;
-//            private DocNode frontendConfig;
-//
-//            public Domain(String type) {
-//                this.type = type;
-//            }
-//
-//            public Domain id(String id) {
-//                this.id = id;
-//                return this;
-//            }
-//
-//            public Domain description(String description) {
-//                this.description = description;
-//                return this;
-//            }
-//
-//            public Domain frontend(DocNode frontendConfig) {
-//                this.frontendConfig = frontendConfig;
-//                return this;
-//            }
-//
-//            public Domain backend(DocNode backendConfig) {
-//                this.backendConfig = backendConfig;
-//                return this;
-//            }
-//
-//            public Domain userMapping(UserMapping userMapping) {
-//                this.userMapping = userMapping;
-//                return this;
-//            }
-//
-//            public Domain additionalUserInformation(AdditionalUserInformation... additionalUserInformation) {
-//                if (this.additionalUserInformation == null) {
-//                    this.additionalUserInformation = new ArrayList<>(Arrays.asList(additionalUserInformation));
-//                } else {
-//                    this.additionalUserInformation.addAll(Arrays.asList(additionalUserInformation));
-//                }
-//                return this;
-//            }
-//
-//            public Domain acceptIps(String... ips) {
-//                if (acceptIps == null) {
-//                    acceptIps = new ArrayList<>(Arrays.asList(ips));
-//                } else {
-//                    acceptIps.addAll(Arrays.asList(ips));
-//                }
-//                return this;
-//            }
-//
-//            public Domain skipIps(String... ips) {
-//                if (skipIps == null) {
-//                    skipIps = new ArrayList<>(Arrays.asList(ips));
-//                } else {
-//                    skipIps.addAll(Arrays.asList(ips));
-//                }
-//                return this;
-//            }
-//
-//            public Domain skipUsers(String... users) {
-//                skipUsers = Arrays.asList(users);
-//                return this;
-//            }
-//
-//            public Domain acceptUsers(String... users) {
-//                acceptUsers = Arrays.asList(users);
-//                return this;
-//            }
-//
-//            @Override
-//            public Object toBasicObject() {
-//                Map<String, Object> result = new LinkedHashMap<>();
-//
-//                result.put("type", type);
-//
-//                if (id != null) {
-//                    result.put("id", id);
-//                }
-//
-//                if (description != null) {
-//                    result.put("description", description);
-//                }
-//
-//                if (frontendConfig != null) {
-//                    int slash = type.indexOf('/');
-//                    result.put(type.substring(0, slash != -1 ? slash : type.length()), frontendConfig);
-//                }
-//
-//                if (backendConfig != null) {
-//                    result.put(type.substring(type.indexOf('/') + 1), backendConfig);
-//                }
-//
-//                if (acceptIps != null || acceptUsers != null) {
-//                    result.put("accept", ImmutableMap.ofNonNull("ips", acceptIps, "users", acceptUsers));
-//                }
-//
-//                if (skipIps != null || skipUsers != null) {
-//                    result.put("skip", ImmutableMap.ofNonNull("ips", skipIps, "users", skipUsers));
-//                }
-//
-//                if (additionalUserInformation != null) {
-//                    result.put("additional_user_information", additionalUserInformation);
-//                }
-//
-//                if (userMapping != null) {
-//                    result.put("user_mapping", userMapping.toBasicObject());
-//                }
-//
-//                return result;
-//            }
-//
-////            public static class AdditionalUserInformation implements Document<AdditionalUserInformation> {
-////                private String type;
-////                private DocNode config;
-////
-////                public AdditionalUserInformation(String type) {
-////                    this.type = type;
-////                    this.config = null;
-////                }
-////
-////                public AdditionalUserInformation(String type, DocNode config) {
-////                    this.type = type;
-////                    this.config = config;
-////                }
-////
-////                @Override
-////                public Object toBasicObject() {
-////                    return ImmutableMap.ofNonNull("type", type, type, config);
-////                }
-////
-////            }
-////
-////            public static class UserMapping implements Document<UserMapping> {
-////                private List<DocNode> userNameFrom = new ArrayList<>();
-////                private List<String> userNameStatic = new ArrayList<>();
-////                private List<DocNode> userNameFromBackend = new ArrayList<>();
-////                private List<DocNode> rolesFrom = new ArrayList<>();
-////                private List<DocNode> rolesFromCommaSeparatedString = new ArrayList<>();
-////                private List<String> rolesStatic = new ArrayList<>();
-////                private Map<String, String> attrsFrom = new HashMap<>();
-////                private Map<String, String> attrsStatic = new HashMap<>();
-////
-////                public UserMapping userNameFrom(String sourcePath) {
-////                    userNameFrom.add(DocNode.wrap(sourcePath));
-////                    return this;
-////                }
-////
-////                public UserMapping userNameFrom(DocNode docNode) {
-////                    userNameFrom.add(docNode);
-////                    return this;
-////                }
-////
-////                public UserMapping userNameStatic(String userName) {
-////                    userNameStatic.add(userName);
-////                    return this;
-////                }
-////
-////                public UserMapping userNameFromBackend(String sourcePath) {
-////                    userNameFromBackend.add(DocNode.wrap(sourcePath));
-////                    return this;
-////                }
-////
-////                public UserMapping userNameFromBackend(DocNode docNode) {
-////                    userNameFromBackend.add(docNode);
-////                    return this;
-////                }
-////
-////                public UserMapping rolesFrom(String sourcePath) {
-////                    rolesFrom.add(DocNode.wrap(sourcePath));
-////                    return this;
-////                }
-////
-////                public UserMapping rolesFromCommaSeparatedString(String sourcePath) {
-////                    rolesFromCommaSeparatedString.add(DocNode.wrap(sourcePath));
-////                    return this;
-////                }
-////
-////                public UserMapping rolesFrom(DocNode docNode) {
-////                    rolesFrom.add(docNode);
-////                    return this;
-////                }
-////
-////                public UserMapping rolesStatic(String... roles) {
-////                    rolesStatic.addAll(Arrays.asList(roles));
-////                    return this;
-////                }
-////
-////                public UserMapping attrsFrom(String target, String sourcePath) {
-////                    this.attrsFrom.put(target, sourcePath);
-////                    return this;
-////                }
-////
-////                public UserMapping attrsStatic(String target, String value) {
-////                    this.attrsStatic.put(target, value);
-////                    return this;
-////                }
-////
-////                @Override
-////                public Object toBasicObject() {
-////                    Map<String, Object> result = new LinkedHashMap<>();
-////
-////                    if (userNameFrom.size() != 0 || userNameStatic.size() != 0 || userNameFromBackend.size() != 0) {
-////                        Map<String, Object> userName = new LinkedHashMap<>();
-////
-////                        if (userNameFrom.size() == 1) {
-////                            userName.put("from", userNameFrom.get(0));
-////                        } else if (userNameFrom.size() > 1) {
-////                            userName.put("from", userNameFrom);
-////                        }
-////
-////                        if (userNameStatic.size() == 1) {
-////                            userName.put("static", userNameStatic.get(0));
-////                        } else if (userNameStatic.size() > 1) {
-////                            userName.put("static", userNameStatic);
-////                        }
-////
-////                        if (userNameFromBackend.size() == 1) {
-////                            userName.put("from_backend", userNameFromBackend.get(0));
-////                        } else if (userNameFromBackend.size() > 1) {
-////                            userName.put("from_backend", userNameFromBackend);
-////                        }
-////
-////                        result.put("user_name", userName);
-////                    }
-////
-////                    if (rolesFrom.size() != 0 || rolesStatic.size() != 0 || rolesFromCommaSeparatedString.size() != 0) {
-////                        Map<String, Object> roles = new LinkedHashMap<>();
-////
-////                        if (rolesFrom.size() == 1) {
-////                            roles.put("from", rolesFrom.get(0));
-////                        } else if (rolesFrom.size() > 1) {
-////                            roles.put("from", rolesFrom);
-////                        }
-////
-////                        if (rolesFromCommaSeparatedString.size() == 1) {
-////                            roles.put("from_comma_separated_string", rolesFromCommaSeparatedString.get(0));
-////                        } else if (rolesFromCommaSeparatedString.size() > 1) {
-////                            roles.put("from_comma_separated_string", rolesFromCommaSeparatedString);
-////                        }
-////
-////                        if (rolesStatic.size() == 1) {
-////                            roles.put("static", rolesStatic.get(0));
-////                        } else if (rolesStatic.size() > 1) {
-////                            roles.put("static", rolesStatic);
-////                        }
-////
-////                        result.put("roles", roles);
-////                    }
-////
-////                    if (attrsFrom.size() != 0 || attrsStatic.size() != 0) {
-////                        Map<String, Object> attrs = new LinkedHashMap<>();
-////
-////                        if (attrsFrom.size() != 0) {
-////                            attrs.put("from", attrsFrom);
-////                        }
-////
-////                        if (attrsStatic.size() != 0) {
-////                            attrs.put("static", attrsStatic);
-////                        }
-////
-////                        result.put("attrs", attrs);
-////                    }
-////
-////                    return result;
-////                }
-////
-////            }
-////
-////        }
-////
-////        @Override
-////        public Object toBasicObject() {
-////            Map<String, Object> result = new LinkedHashMap<>();
-////
-////            result.put("auth_domains", domains);
-////
-////            if (trustedProxies != null) {
-////                result.put("network", ImmutableMap.of("trusted_proxies", trustedProxies));
-////            }
-////
-////            return ImmutableMap.of("default", result);
-////        }
-////    }
-//
-
-//
-//}
-//}
-//}
