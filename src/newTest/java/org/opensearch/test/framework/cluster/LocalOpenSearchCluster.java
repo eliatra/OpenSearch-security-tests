@@ -55,9 +55,10 @@ import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.indices.template.put.PutIndexTemplateRequest;
-import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.client.AdminClient;
 import org.opensearch.client.Client;
+
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.common.Strings;
@@ -109,9 +110,12 @@ public class LocalOpenSearchCluster {
         this.clusterConfiguration = clusterConfiguration;
         this.nodeSettingsSupplier = nodeSettingsSupplier;
         this.additionalPlugins = additionalPlugins;
-        // TODO: Handle home directory
-        // this.clusterHomeDir = FileHelper.createTempDirectory("sg_local_cluster_" + clusterName);
         this.testCertificates = testCertificates;
+        try {
+			this.clusterHomeDir = Files.createTempDirectory("sg_local_cluster_" + clusterName).toFile();
+		} catch (IOException e) {
+			throw new IllegalStateException(e);
+		}        
     }
 
     public void start() throws Exception {

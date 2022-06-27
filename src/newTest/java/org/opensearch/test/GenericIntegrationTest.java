@@ -25,14 +25,21 @@ public class GenericIntegrationTest {
 
     private final static TestSecurityConfig.User ADMIN_USER = new TestSecurityConfig.User("admin")
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
-
+    
+    private final static TestSecurityConfig.AuthcDomain authc = new TestSecurityConfig.AuthcDomain("basic", 0).httpAuthenticator("basic").backend("internal");
+    
+    private final static TestSecurityConfig sgConfig = new TestSecurityConfig().authc(authc);
+            
+    
+    
+    
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().user(ADMIN_USER).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sgConfig(sgConfig).user(ADMIN_USER).build();
 
     @Test
     public void basicTest() throws Exception {
         try (TestRestClient client = cluster.getRestClient(ADMIN_USER)) {
-            HttpResponse response = client.get("_opendistro/_security/health?pretty");
+            HttpResponse response = client.get("_opendistro/_security/authinfo?pretty");
             Assert.assertEquals(response.getStatusCode(), HttpStatus.SC_OK);
         }
     }

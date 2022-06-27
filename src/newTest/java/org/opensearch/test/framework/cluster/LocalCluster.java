@@ -46,11 +46,12 @@ import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.node.PluginAwareNode;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.security.support.ConfigConstants;
 import org.opensearch.test.framework.TestSecurityConfig;
 import org.opensearch.test.framework.TestSecurityConfig.Role;
 import org.opensearch.test.framework.TestSecurityConfig.RoleMapping;
 import org.opensearch.test.framework.certificate.TestCertificates;
-
+import org.opensearch.test.framework.network.ContextHeaderDecoratorClient;
 
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, OpenSearchClientProvider {
@@ -66,7 +67,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
     protected final String resourceFolder;
     private final List<Class<? extends Plugin>> plugins;
     private final ClusterConfiguration clusterConfiguration;
-    private final TestSecurityConfig testSgConfig;
+    private final TestSecurityConfig testSecurityConfig;
     private Settings nodeOverride;
     private final String clusterName;
     private final MinimumSecuritySettingsSupplierFactory minimumOpenSearchSettingsSupplierFactory;
@@ -82,7 +83,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         this.plugins = plugins;
         this.testCertificates = testCertificates;
         this.clusterConfiguration = clusterConfiguration;
-        this.testSgConfig = testSgConfig;
+        this.testSecurityConfig = testSgConfig;
         this.nodeOverride = nodeOverride;
         this.clusterName = clusterName;
         this.minimumOpenSearchSettingsSupplierFactory = new MinimumSecuritySettingsSupplierFactory(testCertificates);
@@ -164,10 +165,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         // return PrivilegedConfigClient.adapt(getInternalNodeClient());
     }
 
-    public <X> X getInjectable(Class<X> clazz) {
-        return this.localOpenSearchCluster.masterNode().getInjectable(clazz);
-    }
-
     public PluginAwareNode node() {
         return this.localOpenSearchCluster.masterNode().esNode();
     }
@@ -183,43 +180,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
     public LocalOpenSearchCluster.Node getRandomClientNode() {
         return this.localOpenSearchCluster.randomClientNode();
     }
-
-//    public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
-//        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
-//            log.info("Updating config {}.{}:{}", configType, key, value);
-//            ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);
-//            String OpenSearchIndex = configRepository.getEffectiveSecurityIndex();
-//
-//            GetResponse getResponse = client.get(new GetRequest(OpenSearchIndex, configType.toLCString())).actionGet();
-//            String jsonDoc = new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
-//            NestedValueMap config = NestedValueMap.fromJsonString(jsonDoc);
-//
-//            config.put(key, value);
-//
-//            if (log.isTraceEnabled()) {
-//                log.trace("Updated config: " + config);
-//            }
-//
-//            IndexResponse response = client
-//                    .index(new IndexRequest(OpenSearchIndex).id(configType.toLCString()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-//                            .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
-//                    .actionGet();
-//
-//            if (response.getResult() != DocWriteResponse.Result.UPDATED) {
-//                throw new RuntimeException("Updated failed " + response);
-//            }
-//
-//            ConfigUpdateResponse configUpdateResponse = client
-//                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
-//
-//            if (configUpdateResponse.hasFailures()) {
-//                throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
-//            }
-//
-//        } catch (IOException | DocumentParseException | UnexpectedDocumentStructureException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
     public boolean isStarted() {
         return localOpenSearchCluster != null;
@@ -241,12 +201,17 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
             throw new RuntimeException(e);
         }
 
-        if (testSgConfig != null) {
-        	// TODO: Initialize security config
-            // initSecurityIndex(testSgConfig);
+        if (testSecurityConfig != null) {
+             initSecurityIndex(testSecurityConfig);
         }
     }
 
+    private void initSecurityIndex(TestSecurityConfig testSecurityConfig) {
+        log.info("Initializing Search Guard index");        
+        Client client = new ContextHeaderDecoratorClient(this.getInternalNodeClient(), Map.of(ConfigConstants.OPENDISTRO_SECURITY_CONF_REQUEST_HEADER , "true"));
+        testSecurityConfig.initIndex(client);
+    }
+    
     public String getResourceFolder() {
         return resourceFolder;
     }
@@ -259,7 +224,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         private List<LocalCluster> clusterDependencies = new ArrayList<>();
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
-        private TestSecurityConfig testSgConfig = new TestSecurityConfig().resources("/");
+        private TestSecurityConfig testSecurityConfig = new TestSecurityConfig().resources("/");
         private String clusterName = "local_cluster";
         private TestCertificates testCertificates;
         
@@ -277,7 +242,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
         public Builder resources(String resourceFolder) {
             this.resourceFolder = resourceFolder;
-            testSgConfig.resources(resourceFolder);
+            testSecurityConfig.resources(resourceFolder);
             return this;
         }
 
@@ -292,7 +257,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         }
 
         public Builder sgConfig(TestSecurityConfig testSgConfig) {
-            this.testSgConfig = testSgConfig;
+            this.testSecurityConfig = testSgConfig;
             return this;
         }
 
@@ -326,65 +291,55 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
             return this;
         }
 
-//        public Builder indices(TestIndex... indices) {
-//            this.testIndices.addAll(Arrays.asList(indices));
-//            return this;
-//        }
-//
-//        public Builder aliases(TestAlias... aliases) {
-//            this.testAliases.addAll(Arrays.asList(aliases));
-//            return this;
-//        }
-
         public Builder users(TestSecurityConfig.User... users) {
             for (TestSecurityConfig.User user : users) {
-                testSgConfig.user(user);
+                testSecurityConfig.user(user);
             }
             return this;
         }
 
         public Builder user(TestSecurityConfig.User user) {
-            testSgConfig.user(user);
+            testSecurityConfig.user(user);
             return this;
         }
 
         public Builder user(String name, String password, String... sgRoles) {
-            testSgConfig.user(name, password, sgRoles);
+            testSecurityConfig.user(name, password, sgRoles);
             return this;
         }
 
         public Builder user(String name, String password, Role... sgRoles) {
-            testSgConfig.user(name, password, sgRoles);
+            testSecurityConfig.user(name, password, sgRoles);
             return this;
         }
 
         public Builder roles(Role... roles) {
-            testSgConfig.roles(roles);
+            testSecurityConfig.roles(roles);
             return this;
         }
 
         public Builder roleMapping(RoleMapping... mappings) {
-            testSgConfig.roleMapping(mappings);
+            testSecurityConfig.roleMapping(mappings);
             return this;
         }
 
         public Builder roleToRoleMapping(Role role, String... backendRoles) {
-            testSgConfig.roleToRoleMapping(role, backendRoles);
+            testSecurityConfig.roleToRoleMapping(role, backendRoles);
             return this;
         }
 
-//        public Builder authc(TestSecurityConfig.Authc authc) {
-//            testSgConfig.authc(authc);
-//            return this;
-//        }
+        public Builder authc(TestSecurityConfig.AuthcDomain authc) {
+            testSecurityConfig.authc(authc);
+            return this;
+        }
 
         public Builder dlsFls(TestSecurityConfig.DlsFls dlsfls) {
-            testSgConfig.dlsFls(dlsfls);
+            testSecurityConfig.dlsFls(dlsfls);
             return this;
         }
 
         public Builder var(String name, Supplier<Object> value) {
-            testSgConfig.var(name, value);
+            testSecurityConfig.var(name, value);
             return this;
         }
 
@@ -394,7 +349,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         }
 
         public Builder configIndexName(String configIndexName) {
-            testSgConfig.configIndexName(configIndexName);
+            testSecurityConfig.configIndexName(configIndexName);
             return this;
         }
 
@@ -403,7 +358,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
                 clusterName += "_" + num.incrementAndGet();
 
-                return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins,
+                return new LocalCluster(clusterName, resourceFolder, testSecurityConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins,
                         testCertificates, clusterDependencies, remoteClusters);
             } catch (Exception e) {
                 log.error("Failed to build LocalCluster", e);
@@ -422,8 +377,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
 	@Override
 	public TestCertificates getTestCertificates() {
-		// TODO Implement
-		throw new UnsupportedOperationException();		
+		return testCertificates;
 	}
 
 }

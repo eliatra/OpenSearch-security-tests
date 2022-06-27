@@ -32,7 +32,7 @@ import java.util.Set;
 
 import org.opensearch.common.transport.TransportAddress;
 
-// TODO: getter/setter
+// TODO: change to getter/setter
 public class ClusterInfo {
 	public int numNodes;
 	public String httpHost = null;
