@@ -71,6 +71,29 @@ ext {
     }
 }
 
+//create source set 'newTest'
+//add classes from the main source set to the compilation and runtime classpaths of the newTest
+sourceSets {
+    newTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+//add new task that runs new tests
+task newTest(type: Test) {
+    description = 'Run new tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.newTest.output.classesDirs
+    classpath = sourceSets.newTest.runtimeClasspath
+
+    //run the newTest task after the test task
+    shouldRunAfter test
+}
+
+//run the newTest task before the check task
+check.dependsOn newTest
+
 configurations.all {
     resolutionStrategy {
         force 'commons-codec:commons-codec:1.14'
@@ -132,6 +155,8 @@ dependencies {
     testImplementation 'org.apache.kafka:kafka_2.13:2.8.1:test'
     testImplementation 'org.apache.kafka:kafka-clients:2.8.1:test'
     compileOnly "org.opensearch:opensearch:${opensearch_version}"
+
+    newTestImplementation 'junit:junit:4.13.1'
 }
 
 group = 'org.opensearch'
