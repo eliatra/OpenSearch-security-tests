@@ -28,12 +28,7 @@
 
 package org.opensearch.test.framework.cluster;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Optional;
 
 import org.opensearch.common.settings.Settings;
 import org.opensearch.test.framework.certificate.TestCertificates;

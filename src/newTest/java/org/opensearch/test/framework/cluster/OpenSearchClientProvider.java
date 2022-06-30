@@ -60,14 +60,6 @@ public interface OpenSearchClientProvider {
         return URI.create("https://" + address.getHostString() + ":" + address.getPort());
     }
 
-//    default SSLContextProvider getAdminClientSslContextProvider() {
-//        return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAdminCertificate());
-//    }
-//
-//    default SSLContextProvider getAnyClientSslContextProvider() {
-//        return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAnyClientCertificate());
-//    }
-
     default TestRestClient getRestClient(UserCredentialsHolder user, Header... headers) {
         return getRestClient(user.getName(), user.getPassword(), headers);
     }

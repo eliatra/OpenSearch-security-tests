@@ -70,7 +70,6 @@ public class TestSecurityConfig {
 	private NestedValueMap overrideRoleSettings;
 	private NestedValueMap overrideRoleMappingSettings;
 	private AuthcDomain authc;
-	private DlsFls dlsFls;
 	private String indexName = ".opendistro_security";
 	private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
 
@@ -127,12 +126,6 @@ public class TestSecurityConfig {
 
         return this;
     }
-
-
-	public TestSecurityConfig dlsFls(DlsFls dlsFls) {
-		this.dlsFls = dlsFls;
-		return this;
-	}
 
 	public TestSecurityConfig user(User user) {
 		if (user.roleNames != null) {
@@ -543,23 +536,6 @@ public class TestSecurityConfig {
             }
         }
     }
-
-	public static class DlsFls {
-
-		private Boolean debug;
-		private String metrics;
-		private String useImpl;
-		private Boolean dlsAllowNow;
-
-		public DlsFls() {
-		}
-
-		public DlsFls useImpl(String impl) {
-			this.useImpl = impl;
-			return this;
-		}
-
-	}
 
     public TestSecurityConfig clone() {
         TestSecurityConfig result = new TestSecurityConfig();
