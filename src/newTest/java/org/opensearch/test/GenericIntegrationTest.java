@@ -22,6 +22,8 @@ import org.opensearch.test.framework.cluster.LocalCluster;
 import org.opensearch.test.framework.rest.TestRestClient;
 import org.opensearch.test.framework.rest.TestRestClient.HttpResponse;
 
+import com.fasterxml.jackson.core.JsonPointer;
+
 /**
  * WIP
  * Generic test class that demonstrates how to use the test framework to 
@@ -33,25 +35,46 @@ public class GenericIntegrationTest {
 	// define what authc/authz this test uses
     private final static TestSecurityConfig.AuthcDomain authc = new TestSecurityConfig.AuthcDomain("basic", 0).httpAuthenticator("basic").backend("internal");
     
+    // define indices used in this test
+    private final static TestIndex INDEX_A = TestIndex.name("index-a").build();
+    private final static TestIndex INDEX_B = TestIndex.name("index-b").build();
+    
     // define users and roles used in this test
     private final static TestSecurityConfig.User ADMIN_USER = new TestSecurityConfig.User("admin")
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
-    
-    // define indices used in this test
-    private final static TestIndex index = TestIndex.name("indexa").build();
-    
-    // define test data used in this test
-    // TODO 
+
+    private final static TestSecurityConfig.User INDEX_A_USER = new TestSecurityConfig.User("index_a_user")
+            .roles(new Role("index_a_role").indexPermissions("*").on(INDEX_A).clusterPermissions("*"));
+
 
     // build our test cluster as a ClassRule
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().authc(authc).user(ADMIN_USER).indices(index).build();
+    public static LocalCluster cluster = new LocalCluster.Builder()
+    	.authc(authc)
+    	.users(ADMIN_USER, INDEX_A_USER)
+    	.indices(INDEX_A, INDEX_B).build();
 
     @Test
-    public void basicTest() throws Exception {
+    public void testAdminUserHasAccessToAllIndices() throws Exception {
         try (TestRestClient client = cluster.getRestClient(ADMIN_USER)) {
-            HttpResponse response = client.get("_opendistro/_security/authinfo?pretty");
+            HttpResponse response = client.get("*/_search?pretty");
             Assert.assertEquals(response.getStatusCode(), HttpStatus.SC_OK);
+        }
+    }
+
+    @Test
+    public void testIndexAUserHasOnlyAccessToIndexA() throws Exception {
+        try (TestRestClient client = cluster.getRestClient(INDEX_A_USER)) {
+            HttpResponse response = client.get("index-a/_search?pretty");
+            Assert.assertEquals(response.getStatusCode(), HttpStatus.SC_OK);
+            
+            // demo: work with JSON response body and check values
+            JsonPointer jsonPointer = JsonPointer.compile("/_source/hits/value");
+            int hits = response.toJsonNode().at(jsonPointer).asInt();
+            
+            response = client.get("index-b/_search?pretty");
+            Assert.assertEquals(response.getStatusCode(), HttpStatus.SC_FORBIDDEN);
+                       
         }
     }
 }

@@ -22,6 +22,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Provides TLS certificates required in test cases.
+ * WIP At the moment the certificates are hard coded. 
+ * This will be replaced by classes
+ * that can generate certificates on the fly.
+ */
 public class TestCertificates {
 
     public File getRootCertificate() throws IOException {
@@ -42,6 +48,10 @@ public class TestCertificates {
 
     public File getAdminKey() throws IOException {
     	return createTempFile("admin", ".key", Certificates.ADMIN_KEY);
+    }
+
+    public String[] getAdminDNs() throws IOException {
+    	return new String[] {"CN=kirk,OU=client,O=client,L=test,C=de"};
     }
 
     private File createTempFile(String name, String suffix, String contents) throws IOException {

@@ -112,7 +112,7 @@ public class LocalOpenSearchCluster {
         this.additionalPlugins = additionalPlugins;
         this.testCertificates = testCertificates;
         try {
-			this.clusterHomeDir = Files.createTempDirectory("sg_local_cluster_" + clusterName).toFile();
+			this.clusterHomeDir = Files.createTempDirectory("local_cluster_" + clusterName).toFile();
 		} catch (IOException e) {
 			throw new IllegalStateException(e);
 		}        
@@ -236,7 +236,7 @@ public class LocalOpenSearchCluster {
         this.clientNodes.clear();
         this.seedHosts = null;
         this.initialMasterHosts = null;
-        this.clusterHomeDir = Files.createTempDirectory("sg_local_cluster_" + clusterName + "_retry_" + retry).toFile();
+        this.clusterHomeDir = Files.createTempDirectory("local_cluster_" + clusterName + "_retry_" + retry).toFile();
 
         start();
     }

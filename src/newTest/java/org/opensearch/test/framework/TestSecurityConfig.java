@@ -68,8 +68,7 @@ public class TestSecurityConfig {
 	private NestedValueMap overrideSecurityConfigSettings;
 	private NestedValueMap overrideUserSettings;
 	private NestedValueMap overrideRoleSettings;
-	private NestedValueMap overrideRoleMappingSettings;
-	private AuthcDomain authc;
+	private NestedValueMap overrideRoleMappingSettings;	
 	private String indexName = ".opendistro_security";
 	private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
 
@@ -139,15 +138,15 @@ public class TestSecurityConfig {
 		return user(name, password, null, sgRoles);
 	}
 
-	public TestSecurityConfig user(String name, String password, Map<String, Object> attributes, String... sgRoles) {
+	public TestSecurityConfig user(String name, String password, Map<String, Object> attributes, String... securityRoles) {
 		if (overrideUserSettings == null) {
 			overrideUserSettings = new NestedValueMap();
 		}
 
 		overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), hash(password.toCharArray()));
 
-		if (sgRoles != null && sgRoles.length > 0) {
-			overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"), sgRoles);
+		if (securityRoles != null && securityRoles.length > 0) {
+			overrideUserSettings.put(new NestedValueMap.Path(name, "opensearch_security_roles"), securityRoles);
 		}
 
 		if (attributes != null && attributes.size() != 0) {
@@ -376,6 +375,12 @@ public class TestSecurityConfig {
 			return this.role;
 		}
 
+		public Role on(TestIndex... testindices) {			
+			this.indexPatterns = Arrays.asList(testindices).stream().map(TestIndex::getName).collect(Collectors.toList());
+			this.role.indexPermissions.add(this);
+			return this.role;
+		}
+		
 		public NestedValueMap toJsonMap() {
 			NestedValueMap result = new NestedValueMap();
 
@@ -406,7 +411,6 @@ public class TestSecurityConfig {
         private boolean transportEnabled = true;
         private int order;
         private List<String> skipUsers = new ArrayList<>();
-        private List<String> enabledOnlyForIps = null;
         private HttpAuthenticator httpAuthenticator;
         private AuthenticationBackend authenticationBackend;
 
@@ -445,15 +449,6 @@ public class TestSecurityConfig {
             return this;
         }
 
-        public AuthcDomain enabledOnlyForIps(String... ips) {
-            if (enabledOnlyForIps == null) {
-                enabledOnlyForIps = new ArrayList<>();
-            }
-
-            enabledOnlyForIps.addAll(Arrays.asList(ips));
-            return this;
-        }
-
         NestedValueMap toMap() {
             NestedValueMap result = new NestedValueMap();
             result.put(new NestedValueMap.Path(id, "http_enabled"), enabled);
@@ -475,7 +470,6 @@ public class TestSecurityConfig {
 
             return result;
         }
-
 
         public static class HttpAuthenticator {
             private final String type;
@@ -556,12 +550,12 @@ public class TestSecurityConfig {
 		}
 		client.admin().indices().create(new CreateIndexRequest(indexName).settings(settings)).actionGet();
 
-        writeConfigToIndex(client, CType.CONFIG, "config.yml", overrideSecurityConfigSettings);
-        writeConfigToIndex(client, CType.ROLES, "roles.yml", overrideRoleSettings);
-		writeConfigToIndex(client, CType.INTERNALUSERS, "internal_users.yml", overrideUserSettings);
-        writeConfigToIndex(client, CType.ROLESMAPPING, "roles_mapping.yml", overrideRoleMappingSettings);
-        writeConfigToIndex(client, CType.ACTIONGROUPS, "action_groups.yml");
-        writeConfigToIndex(client, CType.TENANTS, "tenants.yml");
+        writeConfigToIndex(client, CType.CONFIG, overrideSecurityConfigSettings);
+        writeConfigToIndex(client, CType.ROLES, overrideRoleSettings);
+		writeConfigToIndex(client, CType.INTERNALUSERS, overrideUserSettings);
+        writeConfigToIndex(client, CType.ROLESMAPPING, overrideRoleMappingSettings);
+        writeConfigToIndex(client, CType.ACTIONGROUPS);
+        writeConfigToIndex(client, CType.TENANTS);
         
 		ConfigUpdateResponse configUpdateResponse = client.execute(ConfigUpdateAction.INSTANCE,
 				new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
@@ -582,11 +576,11 @@ public class TestSecurityConfig {
 	}
 
 
-    private void writeConfigToIndex(Client client, CType configType, String file) {
-        writeConfigToIndex(client, configType, file, (NestedValueMap) null);
+    private void writeConfigToIndex(Client client, CType configType) {
+        writeConfigToIndex(client, configType, NestedValueMap.createNonCloningMap());
     }
 
-	private void writeConfigToIndex(Client client, CType configType, String file, NestedValueMap overrides) {
+	private void writeConfigToIndex(Client client, CType configType, NestedValueMap overrides) {
 		try {
 
 			NestedValueMap  config = NestedValueMap.of(new NestedValueMap.Path("_meta", "type"), configType.toLCString(),

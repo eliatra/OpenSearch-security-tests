@@ -31,6 +31,8 @@ package org.opensearch.test.framework.cluster;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
@@ -39,8 +41,12 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
+import org.opensearch.security.support.PemKeyReader;
 import org.opensearch.test.framework.certificate.TestCertificates;
 import org.opensearch.test.framework.rest.TestRestClient;
 
@@ -90,16 +96,14 @@ public interface OpenSearchClientProvider {
     }
 
     default TestRestClient createGenericClientRestClient(List<Header> headers) {
-    	// TODO: SSL
-    	// return new ITRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
-    	return new TestRestClient(getHttpAddress(), headers, "");
+    	return new TestRestClient(getHttpAddress(), headers, getSSLContext());
     }
 
     default TestRestClient createGenericAdminRestClient(List<Header> headers) {
         //a client authentication is needed for admin because admin needs to authenticate itself (dn matching in config file)
     	// TODO: SSL
 //        return new ITRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
-    	return new TestRestClient(getHttpAddress(), headers, "");
+    	return new TestRestClient(getHttpAddress(), headers, null);
     }
 
     default BasicHeader getBasicAuthHeader(String user, String password) {
@@ -107,9 +111,34 @@ public interface OpenSearchClientProvider {
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
     }
 
+    private SSLContext getSSLContext() {
+        X509Certificate[] trustCertificates;
+                     
+        try {
+            trustCertificates =  PemKeyReader.loadCertificatesFromFile(getTestCertificates().getRootCertificate() );
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());           
+
+            ks.load(null);
+            
+            for (int i = 0; i < trustCertificates.length; i++) {
+            	ks.setCertificateEntry("caCert-" + i, trustCertificates[i]);	
+			}
+
+            tmf.init(ks);
+
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, tmf.getTrustManagers(), null);
+            return sslContext;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error loading root CA ", e);
+        }
+    }    
+      
     public interface UserCredentialsHolder {
         String getName();
-
         String getPassword();
     }
 

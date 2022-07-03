@@ -39,6 +39,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.net.ssl.SSLContext;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -53,6 +55,8 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -62,40 +66,32 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.common.Strings;
 import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.security.DefaultObjectMapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 
 public class TestRestClient implements AutoCloseable {
 	
     private static final Logger log = LogManager.getLogger(TestRestClient.class);
 
-    public boolean enableHTTPClientSSL = true;
-    public boolean enableHTTPClientSSLv3Only = false;
+    private boolean enableHTTPClientSSL = true;
+    private boolean enableHTTPClientSSLv3Only = false;
     private boolean sendHTTPClientCertificate = false;
-    public boolean trustHTTPServerCertificate = true;
-    private String keystore = "node-0-keystore.jks";
-    public final String prefix;
     private InetSocketAddress nodeHttpAddress;
-//    private GenericSSLConfig sslConfig;
     private RequestConfig requestConfig;
     private List<Header> headers = new ArrayList<>();
     private Header CONTENT_TYPE_JSON = new BasicHeader("Content-Type", "application/json");
     private boolean trackResources = false;
-
+    private SSLContext sslContext;
     private Set<String> puttedResourcesSet = new HashSet<>();
     private List<String> puttedResourcesList = new ArrayList<>();
 
-    public TestRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, String prefix) {
+    public TestRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, SSLContext sslContext) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.headers.addAll(headers);
-        this.prefix = prefix;
-    }
-
-    public TestRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
-        this.nodeHttpAddress = nodeHttpAddress;
-        this.enableHTTPClientSSL = enableHTTPClientSSL;
-        this.trustHTTPServerCertificate = trustHTTPServerCertificate;
-        this.prefix = prefix;
+        this.sslContext = sslContext;
     }
 
     public HttpResponse get(String path, Header... headers) throws Exception {
@@ -217,61 +213,31 @@ public class TestRestClient implements AutoCloseable {
         return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + nodeHttpAddress.getHostString() + ":" + nodeHttpAddress.getPort();
     }
 
-    protected final CloseableHttpClient getHTTPClient() throws Exception {
+	protected final CloseableHttpClient getHTTPClient() throws Exception {
 
-        final HttpClientBuilder hcb = HttpClients.custom();
+		final HttpClientBuilder hcb = HttpClients.custom();
 
-//        if (sslConfig != null) {
-//            hcb.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
-//        } else if (enableHTTPClientSSL) {
-//
-//            log.debug("Configure HTTP client with SSL");
-//
-//            if (prefix != null && !keystore.contains("/")) {
-//                keystore = prefix + "/" + keystore;
-//            }
-//
-//            final String keyStorePath = FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile().getParent();
-//
-//            final KeyStore myTrustStore = KeyStore.getInstance("JKS");
-//            myTrustStore.load(new FileInputStream(keyStorePath + "/truststore.jks"), "changeit".toCharArray());
-//
-//            final KeyStore keyStore = KeyStore.getInstance("JKS");
-//            keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile()), "changeit".toCharArray());
-//
-//            final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
-//
-//            if (trustHTTPServerCertificate) {
-//                sslContextbBuilder.loadTrustMaterial(myTrustStore, null);
-//            }
-//
-//            if (sendHTTPClientCertificate) {
-//                sslContextbBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray());
-//            }
-//
-//            final SSLContext sslContext = sslContextbBuilder.build();
-//
-//            String[] protocols = null;
-//
-//            if (enableHTTPClientSSLv3Only) {
-//                protocols = new String[] { "SSLv3" };
-//            } else {
-//                protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
-//            }
-//
-//            final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, protocols, null, NoopHostnameVerifier.INSTANCE);
-//
-//            hcb.setSSLSocketFactory(sslsf);
-//        }
+		String[] protocols = null;
 
-        hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
+		if (enableHTTPClientSSLv3Only) {
+			protocols = new String[] { "SSLv3" };
+		} else {
+			protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
+		}
 
-        if (requestConfig != null) {
-            hcb.setDefaultRequestConfig(requestConfig);
-        }
+		final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(this.sslContext, protocols, null,
+				NoopHostnameVerifier.INSTANCE);
 
-        return hcb.build();
-    }
+		hcb.setSSLSocketFactory(sslsf);
+
+		hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
+
+		if (requestConfig != null) {
+			hcb.setDefaultRequestConfig(requestConfig);
+		}
+
+		return hcb.build();
+	}
 
     private Header[] mergeHeaders(Header header, Header... headers) {
 
@@ -347,9 +313,9 @@ public class TestRestClient implements AutoCloseable {
             return header == null ? Collections.emptyList() : Arrays.asList(header);
         }
 
-//        public JsonNode toJsonNode() throws JsonProcessingException, IOException {
-//            return DefaultObjectMapper.objectMapper.readTree(getBody());
-//        }
+        public JsonNode toJsonNode() throws JsonProcessingException, IOException {
+            return DefaultObjectMapper.objectMapper.readTree(getBody());
+        }
 
         @Override
         public String toString() {
@@ -358,18 +324,10 @@ public class TestRestClient implements AutoCloseable {
         }
 
     }
-//
-//    public GenericSSLConfig getSslConfig() {
-//        return sslConfig;
-//    }
-//
-//    public void setSslConfig(GenericSSLConfig sslConfig) {
-//        this.sslConfig = sslConfig;
-//    }
 
     @Override
     public String toString() {
-        return "RestHelper [server=" + getHttpServerUri() + ", node=" + nodeHttpAddress + "]";
+        return "TestRestClient [server=" + getHttpServerUri() + ", node=" + nodeHttpAddress + "]";
     }
 
     public RequestConfig getRequestConfig() {
@@ -401,11 +359,4 @@ public class TestRestClient implements AutoCloseable {
         this.sendHTTPClientCertificate = sendHTTPClientCertificate;
     }
 
-    public String getKeystore() {
-        return keystore;
-    }
-
-    public void setKeystore(String keystore) {
-        this.keystore = keystore;
-    }
 }

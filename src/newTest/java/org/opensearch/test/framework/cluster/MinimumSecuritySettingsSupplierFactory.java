@@ -57,56 +57,22 @@ public class MinimumSecuritySettingsSupplierFactory {
 
 		Settings.Builder builder = Settings.builder();
 		
-		
+		// TODO: At the moment the test node certificates have an OID set, so we do not need to
+		// specify any node_dns here. Once we make generating and specifying  
 		try {
 			builder.put("plugins.security.ssl.transport.pemtrustedcas_filepath", testCertificates.getRootCertificate().getAbsolutePath());			
 			builder.put("plugins.security.ssl.transport.pemcert_filepath", testCertificates.getNodeCertificate(node).getAbsolutePath());
 			builder.put("plugins.security.ssl.transport.pemkey_filepath", testCertificates.getNodeKey(node).getAbsolutePath());
 						
+			builder.put("plugins.security.ssl.http.enabled", true);
 			builder.put("plugins.security.ssl.http.pemtrustedcas_filepath", testCertificates.getRootCertificate().getAbsolutePath());
 			builder.put("plugins.security.ssl.http.pemcert_filepath", testCertificates.getNodeCertificate(node).getAbsolutePath());
 			builder.put("plugins.security.ssl.http.pemkey_filepath", testCertificates.getNodeKey(node).getAbsolutePath());
-			
+
+			builder.putList("plugins.security.authcz.admin_dn", testCertificates.getAdminDNs());
 		} catch (IOException e) {
 			throw new IllegalArgumentException("Invalid test certificates provided on local cluster start");
 		}
-//
-//            if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport) {
-//                builder.put("searchguard.ssl.transport.pemcert_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-//                        .put("searchguard.ssl.transport.pemkey_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
-//            } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_rest) {
-//                builder.put("searchguard.ssl.http.pemcert_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-//                        .put("searchguard.ssl.http.pemkey_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
-//            } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport_rest) {
-//                builder.put("searchguard.ssl.transport.pemcert_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-//                        .put("searchguard.ssl.transport.pemkey_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
-//
-//                builder.put("searchguard.ssl.http.pemcert_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-//                        .put("searchguard.ssl.http.pemkey_filepath",
-//                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-//                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-//                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
-//            }
-//
-//            builder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
-//
-//                String adminClientDn = certificatesContext.getAdminCertificate().getCertificate().getSubject().toString();
-//                builder.putList("searchguard.authcz.admin_dn", adminClientDn);
-//                builder.put("searchguard.background_init_if_sgindex_not_exist", false);
-//                builder.put("searchguard.ssl_only", false);
 
 		return builder;
 
