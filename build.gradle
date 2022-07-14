@@ -233,6 +233,7 @@ sourceSets {
     newTest {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
+        force "io.netty:netty-transport-native-unix-common:${versions.netty}"
     }
 }
 
