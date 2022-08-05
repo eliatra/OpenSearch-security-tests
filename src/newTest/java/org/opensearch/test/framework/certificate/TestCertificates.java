@@ -21,10 +21,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.opensearch.test.framework.certificate.PrivateKeyUsage.CRL_SIGN;
 import static org.opensearch.test.framework.certificate.PrivateKeyUsage.DIGITAL_SIGNATURE;
@@ -42,6 +41,8 @@ import static org.opensearch.test.framework.certificate.PrivateKeyUsage.NON_REPU
  */
 public class TestCertificates {
 
+    private static final Integer MAX_NUMBER_OF_NODE_CERTIFICATES = 3;
+
     private static final String CA_SUBJECT = "DC=com,DC=example,O=Example Com Inc.,OU=Example Com Inc. Root CA,CN=Example Com Inc. Root CA";
     private static final String ADMIN_DN = "CN=kirk,OU=client,O=client,L=test,C=de";
     private static final int CERTIFICATE_VALIDITY_DAYS = 365;
@@ -50,11 +51,13 @@ public class TestCertificates {
     private final CertificateData caCertificate;
 
     private final CertificateData adminCertificate;
-    private final Map<Integer, CertificateData> nodeCertificates;
+    private final List<CertificateData> nodeCertificates;
 
     public TestCertificates() {
-        this.nodeCertificates = Collections.synchronizedMap(new HashMap<>());
         this.caCertificate = createCaCertificate();
+        this.nodeCertificates = IntStream.range(0, MAX_NUMBER_OF_NODE_CERTIFICATES)
+            .mapToObj(this::createNodeCertificate)
+            .collect(Collectors.toList());
         this.adminCertificate = createAdminCertificate();
     }
 
@@ -79,12 +82,17 @@ public class TestCertificates {
     }
 
     public File getNodeCertificate(int node) throws IOException {
-        CertificateData certificateData = getOrCreateNodeCertificateData(node);
+        isCorrectNodeNumber(node);
+        CertificateData certificateData = nodeCertificates.get(node);
         return createTempFile("node-" + node, CERTIFICATE_FILE_EXTENSION, certificateData.certificateInPemFormat());
     }
 
-    private CertificateData getOrCreateNodeCertificateData(int node) {
-        return nodeCertificates.computeIfAbsent(node, this::createNodeCertificate);
+    private void isCorrectNodeNumber(int node) {
+        if (node >= MAX_NUMBER_OF_NODE_CERTIFICATES) {
+            String message = String.format("Cannot get certificate for node %d, number of created certificates for nodes is %d", node,
+                    MAX_NUMBER_OF_NODE_CERTIFICATES);
+            throw new CertificateException(message);
+        }
     }
 
     private CertificateData createNodeCertificate(Integer node) {
@@ -99,7 +107,7 @@ public class TestCertificates {
     }
 
     public File getNodeKey(int node, String privateKeyPassword) throws IOException {
-        CertificateData certificateData = getOrCreateNodeCertificateData(node);
+        CertificateData certificateData = nodeCertificates.get(node);
     	return createTempFile("node-" + node, KEY_FILE_EXTENSION, certificateData.privateKeyInPemFormat(privateKeyPassword));
     }
 

@@ -1,11 +1,16 @@
 package org.opensearch.test.framework.certificate;
 
 
+import com.google.common.base.Strings;
+import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
+import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -97,11 +102,29 @@ class CertificateMetadata {
     }
 
     DERSequence createSubjectAlternativeNames() {
-        return SubjectAlternativesNameGenerator.createSubjectAlternativeNameList(nodeOid, dnsNames, ipAddresses);
+        List<ASN1Encodable> subjectAlternativeNameList = new ArrayList<>();
+        if (!Strings.isNullOrEmpty(nodeOid)) {
+            subjectAlternativeNameList.add(new GeneralName(GeneralName.registeredID, nodeOid));
+        }
+        if (isNotEmpty(dnsNames)) {
+            for (String dnsName : dnsNames) {
+                subjectAlternativeNameList.add(new GeneralName(GeneralName.dNSName, dnsName));
+            }
+        }
+        if (isNotEmpty(ipAddresses)) {
+            for (String ip : ipAddresses) {
+                subjectAlternativeNameList.add(new GeneralName(GeneralName.iPAddress, ip));
+            }
+        }
+        return new DERSequence(subjectAlternativeNameList.toArray(ASN1Encodable[]::new));
+    }
+
+    private static <T> boolean isNotEmpty(Collection<T> collection) {
+        return (collection != null) && (!collection.isEmpty());
     }
 
     boolean hasExtendedKeyUsage() {
-        return keyUsages.stream().filter(PrivateKeyUsage::isNotExtendedUsage).count() > 0;
+        return keyUsages.stream().anyMatch(PrivateKeyUsage::isNotExtendedUsage);
     }
 
     ExtendedKeyUsage getExtendedKeyUsage() {

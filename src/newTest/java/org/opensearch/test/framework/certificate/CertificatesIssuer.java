@@ -53,19 +53,18 @@ class CertificatesIssuer {
     private static final AtomicLong ID_COUNTER = new AtomicLong(System.currentTimeMillis());
 
     private final Provider securityProvider;
-    private final AsymmetricCryptographyAlgorithm asymmetricCryptographyAlgorithm;
+    private final AlgorithmKit algorithmKit;
     private final JcaX509ExtensionUtils extUtils;
 
-
-    CertificatesIssuer(Provider securityProvider, AsymmetricCryptographyAlgorithm asymmetricCryptographyAlgorithm) {
+    CertificatesIssuer(Provider securityProvider, AlgorithmKit algorithmKit) {
         this.securityProvider = securityProvider;
-        this.asymmetricCryptographyAlgorithm = asymmetricCryptographyAlgorithm;
+        this.algorithmKit = algorithmKit;
         this.extUtils = getExtUtils();
     }
 
     public CertificateData issueSelfSignedCertificate(CertificateMetadata certificateMetadata) {
         try {
-            KeyPair publicAndPrivateKey = asymmetricCryptographyAlgorithm.generateKeyPair();
+            KeyPair publicAndPrivateKey = algorithmKit.generateKeyPair();
             X500Name issuerName = stringToX500Name(certificateMetadata.getSubject());
             X509CertificateHolder x509CertificateHolder = buildCertificateHolder(
                     requireNonNull(certificateMetadata, "Certificate metadata are required."),
@@ -81,7 +80,7 @@ class CertificatesIssuer {
     
     public CertificateData issueSignedCertificate(CertificateMetadata metadata, CertificateData parentCertificateData) {
         try {
-            KeyPair publicAndPrivateKey = asymmetricCryptographyAlgorithm.generateKeyPair();
+            KeyPair publicAndPrivateKey = algorithmKit.generateKeyPair();
             KeyPair parentKeyPair = requireNonNull(parentCertificateData, "Issuer certificate data are required")
                     .getKeyPair();
             X500Name issuerName = parentCertificateData.getCertificateSubject();
@@ -107,7 +106,7 @@ class CertificatesIssuer {
     }
 
     private ContentSigner createContentSigner(PrivateKey privateKey) throws OperatorCreationException {
-        return new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName())
+        return new JcaContentSignerBuilder(algorithmKit.getSignatureAlgorithmName())
                 .setProvider(securityProvider)
                 .build(privateKey);
     }

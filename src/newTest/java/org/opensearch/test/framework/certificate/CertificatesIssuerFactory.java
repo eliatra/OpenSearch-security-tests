@@ -5,6 +5,9 @@ import java.util.Optional;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import static org.opensearch.test.framework.certificate.AlgorithmKit.ecdsaSha256withEcdsa;
+import static org.opensearch.test.framework.certificate.AlgorithmKit.rsaSha256withRsa;
+
 class CertificatesIssuerFactory {
 
     public static final int KEY_SIZE = 2048;
@@ -21,7 +24,7 @@ class CertificatesIssuerFactory {
 
     public static CertificatesIssuer rsaBaseCertificateIssuer(Provider securityProvider) {
         Provider provider = Optional.ofNullable(securityProvider).orElse(DEFAULT_SECURITY_PROVIDER);
-        return new CertificatesIssuer(provider, new RSAAsymmetricCryptographyAlgorithm(provider, KEY_SIZE));
+        return new CertificatesIssuer(provider, rsaSha256withRsa(provider, KEY_SIZE));
     }
 
     public static CertificatesIssuer ecdsaBaseCertificatesIssuer() {
@@ -30,6 +33,6 @@ class CertificatesIssuerFactory {
 
     public static CertificatesIssuer ecdsaBaseCertificatesIssuer(Provider securityProvider) {
         Provider provider = Optional.ofNullable(securityProvider).orElse(DEFAULT_SECURITY_PROVIDER);
-        return new CertificatesIssuer(provider, new ECDSAAsymmetricCryptographyAlgorithm(provider, "P-384"));
+        return new CertificatesIssuer(provider, ecdsaSha256withEcdsa(securityProvider, "P-384"));
     }
 }
