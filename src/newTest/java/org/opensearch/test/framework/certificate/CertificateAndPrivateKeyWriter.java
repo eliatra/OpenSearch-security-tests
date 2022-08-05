@@ -17,7 +17,9 @@
 
 package org.opensearch.test.framework.certificate;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 

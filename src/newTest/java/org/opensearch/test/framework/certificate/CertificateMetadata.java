@@ -1,12 +1,17 @@
 package org.opensearch.test.framework.certificate;
 
-import java.util.*;
 
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
+
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
@@ -29,8 +34,6 @@ class CertificateMetadata {
 
     private final Set<PrivateKeyUsage> keyUsages;
 
-    private final Set<ExtendedPrivateKeyUsage> extendedKeyUsages;
-
 
     private CertificateMetadata(String subject,
                                int validityDays,
@@ -38,8 +41,7 @@ class CertificateMetadata {
                                List<String> dnsNames,
                                List<String> ipAddresses,
                                boolean basicConstrainIsCa,
-                               Set<PrivateKeyUsage> keyUsages,
-                               Set<ExtendedPrivateKeyUsage> extendedKeyUsages) {
+                               Set<PrivateKeyUsage> keyUsages) {
         this.subject = subject;
         this.validityDays = validityDays;
         this.nodeOid = nodeOid;
@@ -47,31 +49,26 @@ class CertificateMetadata {
         this.ipAddresses = requireNonNull(ipAddresses, "List of IP addresses must not be null");
         this.basicConstrainIsCa = basicConstrainIsCa;
         this.keyUsages = requireNonNull(keyUsages, "Key usage set must not be null.");
-        this.extendedKeyUsages = requireNonNull(extendedKeyUsages, "Extended key usage must not be null.");
     }
 
     public static CertificateMetadata basicMetadata(String subjectName, int validityDays) {
-        return new CertificateMetadata(subjectName, validityDays, null, emptyList(), emptyList(), false, emptySet(), emptySet());
+        return new CertificateMetadata(subjectName, validityDays, null, emptyList(), emptyList(), false, emptySet());
     }
 
-    public CertificateMetadata withKeyUsage(boolean basicConstrainIsCa,
-                                                   Set<PrivateKeyUsage> keyUsages,
-                                                   ExtendedPrivateKeyUsage...extendedKeyUsages){
-        Set<ExtendedPrivateKeyUsage> extendedUsage = arrayToEnumSet(extendedKeyUsages);
-        return new CertificateMetadata(subject, validityDays, nodeOid, dnsNames, ipAddresses, basicConstrainIsCa,
-                keyUsages, extendedUsage);
+    public CertificateMetadata withKeyUsage(boolean basicConstrainIsCa, PrivateKeyUsage...keyUsages){
+        Set<PrivateKeyUsage> usages = arrayToEnumSet(keyUsages);
+        return new CertificateMetadata(subject, validityDays, nodeOid, dnsNames, ipAddresses, basicConstrainIsCa, usages);
     }
 
     private <T extends Enum<T>> Set<T> arrayToEnumSet(T[] enumArray) {
         if((enumArray == null) || (enumArray.length == 0)){
             return Collections.emptySet();
         }
-        return EnumSet.copyOf(Arrays.asList(enumArray));
+        return EnumSet.copyOf(asList(enumArray));
     }
 
     public CertificateMetadata withSubjectAlternativeName(String nodeOid, List<String> dnsNames, String...ipAddresses) {
-        return new CertificateMetadata(subject, validityDays, nodeOid, dnsNames, Arrays.asList(ipAddresses),
-                basicConstrainIsCa, keyUsages, extendedKeyUsages);
+        return new CertificateMetadata(subject, validityDays, nodeOid, dnsNames, asList(ipAddresses), basicConstrainIsCa, keyUsages);
     }
 
     public String getSubject() {
@@ -88,9 +85,10 @@ class CertificateMetadata {
 
     KeyUsage asKeyUsage() {
         Integer keyUsageBitMask = keyUsages
-                .stream()
-                .map(PrivateKeyUsage::asInt)
-                .reduce(0, (accumulator, currentValue) -> accumulator | currentValue);
+            .stream()
+            .filter(PrivateKeyUsage::isNotExtendedUsage)
+            .map(PrivateKeyUsage::asInt)
+            .reduce(0, (accumulator, currentValue) -> accumulator | currentValue);
         return new KeyUsage(keyUsageBitMask);
     }
 
@@ -103,14 +101,15 @@ class CertificateMetadata {
     }
 
     boolean hasExtendedKeyUsage() {
-        return ! extendedKeyUsages.isEmpty();
+        return keyUsages.stream().filter(PrivateKeyUsage::isNotExtendedUsage).count() > 0;
     }
 
     ExtendedKeyUsage getExtendedKeyUsage() {
-        KeyPurposeId[] usages = extendedKeyUsages
-                .stream()
-                .map(ExtendedPrivateKeyUsage::getKeyPurposeId)
-                .toArray(KeyPurposeId[]::new);
+        KeyPurposeId[] usages = keyUsages
+            .stream()
+            .filter(PrivateKeyUsage::isExtendedUsage)
+            .map(PrivateKeyUsage::getKeyPurposeId)
+            .toArray(KeyPurposeId[]::new);
         return new ExtendedKeyUsage(usages);
     }
 }

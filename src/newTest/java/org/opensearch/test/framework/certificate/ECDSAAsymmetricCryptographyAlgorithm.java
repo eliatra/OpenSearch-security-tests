@@ -17,7 +17,11 @@
 
 package org.opensearch.test.framework.certificate;
 
-import java.security.*;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
 import java.security.spec.ECGenParameterSpec;
 
 import org.apache.logging.log4j.LogManager;

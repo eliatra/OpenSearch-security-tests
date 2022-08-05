@@ -18,15 +18,24 @@
 package org.opensearch.test.framework.certificate;
 
 import java.math.BigInteger;
-import java.security.*;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.PublicKey;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.*;
+import org.bouncycastle.asn1.x500.style.RFC4519Style;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -40,6 +49,8 @@ import static java.util.Objects.requireNonNull;
 class CertificatesIssuer {
 
     private static final Logger log = LogManager.getLogger(CertificatesIssuer.class);
+
+    private static final AtomicLong ID_COUNTER = new AtomicLong(System.currentTimeMillis());
 
     private final Provider securityProvider;
     private final AsymmetricCryptographyAlgorithm asymmetricCryptographyAlgorithm;
@@ -55,7 +66,7 @@ class CertificatesIssuer {
     public CertificateData issueSelfSignedCertificate(CertificateMetadata certificateMetadata) {
         try {
             KeyPair publicAndPrivateKey = asymmetricCryptographyAlgorithm.generateKeyPair();
-            X500Name issuerName = StringToX500NameConverter.convert(certificateMetadata.getSubject());
+            X500Name issuerName = stringToX500Name(certificateMetadata.getSubject());
             X509CertificateHolder x509CertificateHolder = buildCertificateHolder(
                     requireNonNull(certificateMetadata, "Certificate metadata are required."),
                     issuerName,
@@ -111,11 +122,11 @@ class CertificatesIssuer {
                                                                 X500Name issuerName,
                                                                 PublicKey certificatePublicKey,
                                                                 PublicKey parentPublicKey) throws CertIOException {
-        X500Name subjectName = StringToX500NameConverter.convert(certificateMetadata.getSubject());
+        X500Name subjectName = stringToX500Name(certificateMetadata.getSubject());
         Date validityStartDate = new Date(System.currentTimeMillis() - (24 * 3600 * 1000));
         Date validityEndDate = getEndDate(validityStartDate, certificateMetadata.getValidityDays());
 
-        BigInteger certificateSerialNumber = CertificateSerialNumberGenerator.generateNextCertificateSerialNumber();
+        BigInteger certificateSerialNumber = generateNextCertificateSerialNumber();
         return new X509v3CertificateBuilder(issuerName, certificateSerialNumber, validityStartDate,
                 validityEndDate, subjectName, SubjectPublicKeyInfo.getInstance(certificatePublicKey.getEncoded()))
                 .addExtension(Extension.basicConstraints, true, new BasicConstraints(certificateMetadata.isBasicConstrainIsCa()))
@@ -145,5 +156,21 @@ class CertificatesIssuer {
             log.error("Getting certificate extension utils failed", e);
             throw new CertificateException("Getting certificate extension utils failed", e);
         }
+    }
+
+    private X500Name stringToX500Name(String distinguishedName) {
+        if (Strings.isNullOrEmpty(distinguishedName)) {
+            throw new CertificateException("No DN (distinguished name) must not be null or empty");
+        }
+        try {
+            return new X500Name(RFC4519Style.INSTANCE, distinguishedName);
+        } catch (IllegalArgumentException e) {
+            String message = String.format("Invalid DN (distinguished name) specified for %s certificate.", distinguishedName);
+            throw new CertificateException(message, e);
+        }
+    }
+
+    private BigInteger generateNextCertificateSerialNumber() {
+        return BigInteger.valueOf(ID_COUNTER.incrementAndGet());
     }
 }
