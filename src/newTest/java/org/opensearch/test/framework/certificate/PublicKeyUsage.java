@@ -1,30 +1,41 @@
 package org.opensearch.test.framework.certificate;
 
+import java.util.Objects;
+
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 
-import java.util.Objects;
-
-enum PrivateKeyUsage {
+/**
+ * The class is associated with certificate extensions related to key usages. These extensions are defined by
+ * <a href="https://www.rfc-editor.org/rfc/rfc5280.html">RFC 5280</a> and describes allowed usage of public kay which is embedded in
+ * certificate. The class is related to the following extensions:
+ * <ol>
+ *     <li>Key Usage, defined in section <a href="https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.3">4.2.1.3</a></li>
+ *     <li>Extended Key Usage, defined in section <a href="https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.12">4.2.1.12</a></li>
+ * </ol>
+ *
+ * @see <a href="https://www.rfc-editor.org/rfc/rfc5280.html">RFC 5280</a>
+ */
+enum PublicKeyUsage {
     DIGITAL_SIGNATURE(KeyUsage.digitalSignature),
     KEY_CERT_SIGN(KeyUsage.keyCertSign),
     CRL_SIGN(KeyUsage.cRLSign),
     NON_REPUDIATION(KeyUsage.nonRepudiation),
     KEY_ENCIPHERMENT(KeyUsage.keyEncipherment),
 
-    ID_KP_SERVERAUTH(KeyPurposeId.id_kp_serverAuth),
+    SERVER_AUTH(KeyPurposeId.id_kp_serverAuth),
 
-    ID_KP_CLIENTAUTH(KeyPurposeId.id_kp_clientAuth);
+    CLIENT_AUTH(KeyPurposeId.id_kp_clientAuth);
 
     private final int keyUsage;
     private final KeyPurposeId id;
 
-    PrivateKeyUsage(int keyUsage) {
+    PublicKeyUsage(int keyUsage) {
         this.keyUsage = keyUsage;
         this.id = null;
     }
 
-    PrivateKeyUsage(KeyPurposeId id) {
+    PublicKeyUsage(KeyPurposeId id) {
         this.id = Objects.requireNonNull(id, "Key purpose id is required.");
         this.keyUsage = 0;
     }

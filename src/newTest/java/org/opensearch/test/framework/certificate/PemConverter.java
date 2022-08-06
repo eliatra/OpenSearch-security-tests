@@ -36,27 +36,44 @@ import org.bouncycastle.operator.OutputEncryptor;
 import org.bouncycastle.util.io.pem.PemGenerationException;
 import org.bouncycastle.util.io.pem.PemObject;
 
-class CertificateAndPrivateKeyWriter {
+import static java.util.Objects.requireNonNull;
 
-    private CertificateAndPrivateKeyWriter() {
+/**
+ * The class provides a method useful for converting certificate and private key into PEM format
+ * @see <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>
+ */
+class PemConverter {
+
+    private PemConverter() {
     }
 
-    private static final Logger log = LogManager.getLogger(CertificateAndPrivateKeyWriter.class);
+    private static final Logger log = LogManager.getLogger(PemConverter.class);
     private static final SecureRandom secureRandom = new SecureRandom();
 
-    public static String writeCertificate(X509CertificateHolder certificate) {
+    /**
+     * It converts certificate represented by {@link X509CertificateHolder} object to PEM format
+     * @param certificate is a certificate to convert
+     * @return {@link String} which contains PEM encoded certificate
+     */
+    public static String toPem(X509CertificateHolder certificate) {
         StringWriter stringWriter = new StringWriter();
         try (JcaPEMWriter writer = new JcaPEMWriter(stringWriter)) {
-            writer.writeObject(certificate);
+            writer.writeObject(requireNonNull(certificate, "Certificate is required."));
         } catch (Exception e) {
             throw new CertificateException("Cannot write certificate in PEM format", e);
         }
         return stringWriter.toString();
     }
 
-    public static String writePrivateKey(PrivateKey privateKey, String privateKeyPassword) {
+    /**
+     * It converts private key represented by class {@link PrivateKey} to PEM format.
+     * @param privateKey is a private key, cannot be <code>null</code>
+     * @param privateKeyPassword is a password used to encode private key, <code>null</code> for unencrypted private key
+     * @return {@link String} which contains PEM encoded private key
+     */
+    public static String toPem(PrivateKey privateKey, String privateKeyPassword) {
         try(StringWriter stringWriter = new StringWriter()){
-            savePrivateKey(stringWriter, privateKey, privateKeyPassword);
+            savePrivateKey(stringWriter, requireNonNull(privateKey, "Private key is required."), privateKeyPassword);
             return stringWriter.toString();
         } catch (IOException e) {
             throw new CertificateException("Cannot convert private key into PEM format.", e);

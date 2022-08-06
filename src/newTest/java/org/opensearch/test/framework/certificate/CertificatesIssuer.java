@@ -46,6 +46,31 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * <p>
+ * The class is used to generate public key certificate. The class hides low level details related to certificate creation and
+ * usage of underlying Bouncy Castle library.
+ * </p>
+ * <p>
+ * The public key certificate according to its name contains a public key and some metadata. The metadata describes an entity (human,
+ * company, web server, IoT device, etc.) which is an owner of private key associated with the certificate (private key is not included
+ * into certificate and is a kind of secret). The responsibility of the class is to issue a certificate. To issue a certificate it is
+ * necessary to provide metadata which is embedded in the certificates. The metadata is represented by the class
+ * {@link CertificateMetadata}. Furthermore, the class needs a public key which also must be embedded in the certificate. To obtain public
+ * and private key pair the class uses {@link AlgorithmKit}. The result of creating certificate is data structure {@link CertificateData}.
+ * The class {@link CertificateData} contains entire information which is necessary to use the certificate by its owner, that is:
+ * certificate and private key.
+ * </p>
+ *
+ * <p>
+ *     The class is able to create self-signed certificates or certificates signed by some entity. To create a self signed certificate
+ *     the method {@link #issueSignedCertificate(CertificateMetadata, CertificateData)} is used, whereas to create signed certificates
+ *     the method {@link #issueSignedCertificate(CertificateMetadata, CertificateData)} is employed.
+ * </p>
+ * <p>
+ *     The instance of the class can be obtained by invocation of static method defined in class {@link CertificatesIssuerFactory}.
+ * </p>
+ */
 class CertificatesIssuer {
 
     private static final Logger log = LogManager.getLogger(CertificatesIssuer.class);
@@ -62,12 +87,19 @@ class CertificatesIssuer {
         this.extUtils = getExtUtils();
     }
 
+    /**
+     * The method creates a certificate with provided metadata and public key obtained from {@link #algorithmKit}. The result of invocation
+     * contains required data to use a certificate by its owner.
+     *
+     * @param certificateMetadata metadata which should be embedded into created certificate
+     * @return {@link CertificateData} which contain certificate and private key associated with the certificate.
+     */
     public CertificateData issueSelfSignedCertificate(CertificateMetadata certificateMetadata) {
         try {
             KeyPair publicAndPrivateKey = algorithmKit.generateKeyPair();
-            X500Name issuerName = stringToX500Name(certificateMetadata.getSubject());
+            X500Name issuerName = stringToX500Name(requireNonNull(certificateMetadata.getSubject(), "Certificate metadata are required."));
             X509CertificateHolder x509CertificateHolder = buildCertificateHolder(
-                    requireNonNull(certificateMetadata, "Certificate metadata are required."),
+                    certificateMetadata,
                     issuerName,
                     publicAndPrivateKey.getPublic(),
                     publicAndPrivateKey);
@@ -77,14 +109,22 @@ class CertificatesIssuer {
             throw new CertificateException("Error while generating self signed certificate", e);
         }
     }
-    
+
+    /**
+     * The method is similar to {@link #issueSignedCertificate(CertificateMetadata, CertificateData)} but additionally it signs created
+     * certificate using data from <code>parentCertificateData</code>.
+     *
+     * @param metadata metadata which should be embedded into created certificate
+     * @param parentCertificateData data required to signe a newly issued certificate (private key among others things).
+     * @return {@link CertificateData} which contain certificate and private key associated with the certificate.
+     */
     public CertificateData issueSignedCertificate(CertificateMetadata metadata, CertificateData parentCertificateData) {
         try {
             KeyPair publicAndPrivateKey = algorithmKit.generateKeyPair();
             KeyPair parentKeyPair = requireNonNull(parentCertificateData, "Issuer certificate data are required")
                     .getKeyPair();
             X500Name issuerName = parentCertificateData.getCertificateSubject();
-            X509CertificateHolder x509CertificateHolder = buildCertificateHolder(metadata,
+            var x509CertificateHolder = buildCertificateHolder(requireNonNull(metadata, "Certificate metadata are required"),
                     issuerName,
                     publicAndPrivateKey.getPublic(),
                     parentKeyPair);

@@ -22,6 +22,9 @@ import java.security.KeyPair;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.X509CertificateHolder;
 
+/**
+ * The class contains all data related to Certificate including private key which is considered to be a secret.
+ */
 class CertificateData {
 
     private final X509CertificateHolder certificate;
@@ -32,18 +35,24 @@ class CertificateData {
         this.keyPair = keyPair;
     }
 
+    /**
+     * The method returns X.509 certificate encoded in PEM format. PEM format is defined by
+     * <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>.
+     * @return Certificate in PEM format
+     */
     public String certificateInPemFormat() {
-        return CertificateAndPrivateKeyWriter.writeCertificate(certificate);
+        return PemConverter.toPem(certificate);
     }
 
+    /**
+     * It returns the private key associated with certificate encoded in PEM format. PEM format is defined by
+     * <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>.
+     * @param privateKeyPassword password used for private key encryption. <code>null</code> for unencrypted key.
+     * @return private key encoded in PEM format
+     */
     public String privateKeyInPemFormat(String privateKeyPassword) {
-        return CertificateAndPrivateKeyWriter.writePrivateKey(keyPair.getPrivate(), privateKeyPassword);
+        return PemConverter.toPem(keyPair.getPrivate(), privateKeyPassword);
     }
-
-    public X509CertificateHolder getCertificate() {
-        return certificate;
-    }
-
 
     X500Name getCertificateSubject() {
         return certificate.getSubject();

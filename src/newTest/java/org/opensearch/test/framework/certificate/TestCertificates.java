@@ -25,23 +25,21 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.CRL_SIGN;
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.DIGITAL_SIGNATURE;
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.ID_KP_CLIENTAUTH;
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.ID_KP_SERVERAUTH;
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.KEY_CERT_SIGN;
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.KEY_ENCIPHERMENT;
-import static org.opensearch.test.framework.certificate.PrivateKeyUsage.NON_REPUDIATION;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.CLIENT_AUTH;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.CRL_SIGN;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.DIGITAL_SIGNATURE;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.KEY_CERT_SIGN;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.KEY_ENCIPHERMENT;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.NON_REPUDIATION;
+import static org.opensearch.test.framework.certificate.PublicKeyUsage.SERVER_AUTH;
 
 /**
- * Provides TLS certificates required in test cases.
- * WIP At the moment the certificates are hard coded. 
- * This will be replaced by classes
- * that can generate certificates on the fly.
+ * It provides TLS certificates required in test cases. The certificates are generated during process of creation objects of the class.
+ * The class exposes method which can be used to write certificates and private keys in temporally files.
  */
 public class TestCertificates {
 
-    private static final Integer MAX_NUMBER_OF_NODE_CERTIFICATES = 3;
+    public static final Integer MAX_NUMBER_OF_NODE_CERTIFICATES = 3;
 
     private static final String CA_SUBJECT = "DC=com,DC=example,O=Example Com Inc.,OU=Example Com Inc. Root CA,CN=Example Com Inc. Root CA";
     private static final String ADMIN_DN = "CN=kirk,OU=client,O=client,L=test,C=de";
@@ -61,6 +59,7 @@ public class TestCertificates {
         this.adminCertificate = createAdminCertificate();
     }
 
+
     private CertificateData createCaCertificate() {
         CertificateMetadata metadata = CertificateMetadata.basicMetadata(CA_SUBJECT, CERTIFICATE_VALIDITY_DAYS)
                 .withKeyUsage(true, DIGITAL_SIGNATURE, KEY_CERT_SIGN, CRL_SIGN);
@@ -71,16 +70,27 @@ public class TestCertificates {
 
     private CertificateData createAdminCertificate() {
         CertificateMetadata metadata = CertificateMetadata.basicMetadata(ADMIN_DN, CERTIFICATE_VALIDITY_DAYS)
-                .withKeyUsage(false, DIGITAL_SIGNATURE, NON_REPUDIATION, KEY_ENCIPHERMENT, ID_KP_CLIENTAUTH);
+                .withKeyUsage(false, DIGITAL_SIGNATURE, NON_REPUDIATION, KEY_ENCIPHERMENT, CLIENT_AUTH);
         return CertificatesIssuerFactory
                 .rsaBaseCertificateIssuer()
                 .issueSelfSignedCertificate(metadata);
     }
 
+    /**
+     * It returns the most trusted certificate. Certificates for nodes and users are derived from this certificate.
+     * @return file which contains certificate in PEM format, defined by <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>
+     * @throws IOException
+     */
     public File getRootCertificate() throws IOException {
     	return createTempFile("root", CERTIFICATE_FILE_EXTENSION, caCertificate.certificateInPemFormat());
     }
 
+    /**
+     * Certificate for Open Search node. The certificate is derived from root certificate, returned by method {@link #getRootCertificate()}
+     * @param node is a node index. It has to be less than {@link #MAX_NUMBER_OF_NODE_CERTIFICATES}
+     * @return file which contains certificate in PEM format, defined by <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>
+     * @throws IOException
+     */
     public File getNodeCertificate(int node) throws IOException {
         isCorrectNodeNumber(node);
         CertificateData certificateData = nodeCertificates.get(node);
@@ -99,22 +109,45 @@ public class TestCertificates {
         String subject = String.format("DC=de,L=test,O=node,OU=node,CN=node-%d.example.com", node);
         String domain = String.format("node-%d.example.com", node);
         CertificateMetadata metadata = CertificateMetadata.basicMetadata(subject, CERTIFICATE_VALIDITY_DAYS)
-                .withKeyUsage(false, DIGITAL_SIGNATURE, NON_REPUDIATION, KEY_ENCIPHERMENT, ID_KP_CLIENTAUTH, ID_KP_SERVERAUTH)
+                .withKeyUsage(false, DIGITAL_SIGNATURE, NON_REPUDIATION, KEY_ENCIPHERMENT, CLIENT_AUTH, SERVER_AUTH)
                 .withSubjectAlternativeName("1.2.3.4.5.5", List.of(domain, "localhost"), "127.0.0.1");
         return CertificatesIssuerFactory
                 .rsaBaseCertificateIssuer()
                 .issueSignedCertificate(metadata, caCertificate);
     }
 
+    /**
+     * It returns private key associated with node certificate returned by method {@link #getNodeCertificate(int)}
+     *
+     * @param node is a node index. It has to be less than {@link #MAX_NUMBER_OF_NODE_CERTIFICATES}
+     * @param privateKeyPassword is a password used to encode private key, can be <code>null</code> to retrieve unencrypted key.
+     * @return file which contains private key encoded in PEM format, defined
+     * by <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>
+     * @throws IOException
+     */
     public File getNodeKey(int node, String privateKeyPassword) throws IOException {
         CertificateData certificateData = nodeCertificates.get(node);
     	return createTempFile("node-" + node, KEY_FILE_EXTENSION, certificateData.privateKeyInPemFormat(privateKeyPassword));
     }
 
+    /**
+     * Certificate which proofs admin user identity. Certificate is derived from root certificate returned by
+     * method {@link #getRootCertificate()}
+     * @return file which contains certificate in PEM format, defined by <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>
+     * @throws IOException
+     */
     public File getAdminCertificate() throws IOException {
     	return createTempFile("admin", CERTIFICATE_FILE_EXTENSION, adminCertificate.certificateInPemFormat());
     }
 
+    /**
+     * It returns private key associated with admin certificate returned by {@link #getAdminCertificate()}.
+     *
+     * @param privateKeyPassword is a password used to encode private key, can be <code>null</code> to retrieve unencrypted key.
+     * @return file which contains private key encoded in PEM format, defined
+     * by <a href="https://www.rfc-editor.org/rfc/rfc1421.txt">RFC 1421</a>
+     * @throws IOException
+     */
     public File getAdminKey(String privateKeyPassword) throws IOException {
     	return createTempFile("admin", KEY_FILE_EXTENSION, adminCertificate.privateKeyInPemFormat(privateKeyPassword));
     }
