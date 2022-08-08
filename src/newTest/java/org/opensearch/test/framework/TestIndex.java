@@ -29,7 +29,6 @@
 package org.opensearch.test.framework;
 
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
-import org.opensearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
 
@@ -44,11 +43,9 @@ public class TestIndex {
         
     }
 
-    public void create(Client client) {
-        if (!client.admin().indices().exists(new IndicesExistsRequest(name)).actionGet().isExists()) {
-            client.admin().indices().create(new CreateIndexRequest(name).settings(settings)).actionGet();
-        }
-    }
+	public void create(Client client) {
+		client.admin().indices().create(new CreateIndexRequest(name).settings(settings)).actionGet();
+	}
 
     public String getName() {
         return name;

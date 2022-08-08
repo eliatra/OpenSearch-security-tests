@@ -38,12 +38,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
+
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.WriteRequest.RefreshPolicy;
@@ -69,19 +69,13 @@ public class TestSecurityConfig {
 	private NestedValueMap overrideRoleSettings;
 	private NestedValueMap overrideRoleMappingSettings;	
 	private String indexName = ".opendistro_security";
-	private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
-
+	
 	public TestSecurityConfig() {
 
 	}
 
 	public TestSecurityConfig configIndexName(String configIndexName) {
 		this.indexName = configIndexName;
-		return this;
-	}
-
-	public TestSecurityConfig var(String name, Supplier<Object> variableSupplier) {
-		this.variableSuppliers.put(name, variableSupplier);
 		return this;
 	}
 
@@ -244,6 +238,10 @@ public class TestSecurityConfig {
 	}
 
 	public static class User implements UserCredentialsHolder {
+
+		public final static TestSecurityConfig.User USER_ADMIN = new TestSecurityConfig.User("admin")
+				.roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
+		
 		private String name;
 		private String password;
 		private Role[] roles;
@@ -411,6 +409,9 @@ public class TestSecurityConfig {
 
     public static class AuthcDomain {
 
+    	public final static AuthcDomain AUTHC_HTTPBASIC_INTERNAL = new TestSecurityConfig.AuthcDomain("basic", 0)
+    			.httpAuthenticator("basic").backend("internal");
+
         private final String id;
         private boolean enabled = true;
         private boolean transportEnabled = true;
@@ -418,7 +419,7 @@ public class TestSecurityConfig {
         private List<String> skipUsers = new ArrayList<>();
         private HttpAuthenticator httpAuthenticator;
         private AuthenticationBackend authenticationBackend;
-
+    	
         public AuthcDomain(String id, int order) {
             this.id = id;
             this.order = order;

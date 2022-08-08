@@ -37,12 +37,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.rules.ExternalResource;
+
 import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.node.PluginAwareNode;
@@ -66,7 +66,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
     protected static final AtomicLong num = new AtomicLong();
 
     private final List<Class<? extends Plugin>> plugins;
-    private final ClusterConfiguration clusterConfiguration;
+    private final ClusterManager clusterConfiguration;
     private final TestSecurityConfig testSecurityConfig;
     private Settings nodeOverride;
     private final String clusterName;
@@ -78,7 +78,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 	private final List<TestIndex> testIndices;
 
     private LocalCluster(String clusterName, TestSecurityConfig testSgConfig, Settings nodeOverride,
-            ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates,
+            ClusterManager clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates,
             List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices) {
         this.plugins = plugins;
         this.testCertificates = testCertificates;
@@ -221,7 +221,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
         private Map<String, LocalCluster> remoteClusters = new HashMap<>();
         private List<LocalCluster> clusterDependencies = new ArrayList<>();
         private List<TestIndex> testIndices = new ArrayList<>();
-        private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
+        private ClusterManager clusterConfiguration = ClusterManager.DEFAULT;
         private TestSecurityConfig testSecurityConfig = new TestSecurityConfig();
         private String clusterName = "local_cluster";
         private TestCertificates testCertificates;
@@ -238,13 +238,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
             return this;
         }
 
-        public Builder clusterConfiguration(ClusterConfiguration clusterConfiguration) {
+        public Builder clusterConfiguration(ClusterManager clusterConfiguration) {
             this.clusterConfiguration = clusterConfiguration;
             return this;
         }
 
         public Builder singleNode() {
-            this.clusterConfiguration = ClusterConfiguration.SINGLENODE;
+            this.clusterConfiguration = ClusterManager.SINGLENODE;
             return this;
         }
 
@@ -327,11 +327,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
         public Builder authc(TestSecurityConfig.AuthcDomain authc) {
             testSecurityConfig.authc(authc);
-            return this;
-        }
-
-        public Builder var(String name, Supplier<Object> value) {
-            testSecurityConfig.var(name, value);
             return this;
         }
 

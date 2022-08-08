@@ -28,8 +28,6 @@
 
 package org.opensearch.test.framework.cluster;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -43,38 +41,28 @@ import java.util.List;
 import java.util.Random;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import com.google.common.net.InetAddresses;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.OpenSearchTimeoutException;
+
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.opensearch.action.admin.cluster.node.info.NodeInfo;
-import org.opensearch.action.admin.cluster.node.info.NodesInfoRequest;
-import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.opensearch.action.admin.indices.template.put.PutIndexTemplateRequest;
-import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.client.AdminClient;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.health.ClusterHealthStatus;
-import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.http.BindHttpException;
-import org.opensearch.http.HttpInfo;
 import org.opensearch.node.PluginAwareNode;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.framework.certificate.TestCertificates;
-import org.opensearch.test.framework.cluster.ClusterConfiguration.NodeSettings;
+import org.opensearch.test.framework.cluster.ClusterManager.NodeSettings;
 import org.opensearch.transport.BindTransportException;
-import org.opensearch.transport.TransportInfo;
 
-import com.google.common.net.InetAddresses;
+import static org.junit.Assert.assertEquals;
 
 
 public class LocalOpenSearchCluster {
@@ -86,7 +74,7 @@ public class LocalOpenSearchCluster {
     private static final Logger log = LogManager.getLogger(LocalOpenSearchCluster.class);
 
     private final String clusterName;
-    private final ClusterConfiguration clusterConfiguration;
+    private final ClusterManager clusterConfiguration;
     private final NodeSettingsSupplier nodeSettingsSupplier;
     private final List<Class<? extends Plugin>> additionalPlugins;
     private final List<Node> allNodes = new ArrayList<>();
@@ -102,7 +90,7 @@ public class LocalOpenSearchCluster {
     private boolean started;
     private Random random = new Random();
 
-    public LocalOpenSearchCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
+    public LocalOpenSearchCluster(String clusterName, ClusterManager clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
                           List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
         this.clusterName = clusterName;
         this.clusterConfiguration = clusterConfiguration;
@@ -152,7 +140,6 @@ public class LocalOpenSearchCluster {
         log.info("Startup finished. Waiting for GREEN");
 
         waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(10), allNodes.size());
-        putDefaultTemplate();
 
         log.info("Started: {}", this);
 
@@ -289,19 +276,6 @@ public class LocalOpenSearchCluster {
         return runningNodes.get(index);
     }
 
-    private void putDefaultTemplate() {
-        String defaultTemplate = "{\n" + "          \"index_patterns\": [\"*\"],\n" + "          \"order\": -1,\n" + "          \"settings\": {\n"
-                + "            \"number_of_shards\": \"5\",\n" + "            \"number_of_replicas\": \"1\"\n" + "          }\n" //
-                + "        }";
-
-        AcknowledgedResponse templateAck = clientNode().getInternalNodeClient().admin().indices()
-                .putTemplate(new PutIndexTemplateRequest("default").source(defaultTemplate, XContentType.JSON)).actionGet();
-
-        if (!templateAck.isAcknowledged()) {
-            throw new RuntimeException("Default template could not be created");
-        }
-    }
-
     private CompletableFuture<Void> startNodes(List<NodeSettings> nodeSettingList, SortedSet<Integer> transportPorts, SortedSet<Integer> httpPorts) {
         Iterator<Integer> transportPortIterator = transportPorts.iterator();
         Iterator<Integer> httpPortIterator = httpPorts.iterator();
@@ -315,11 +289,10 @@ public class LocalOpenSearchCluster {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
-    public ClusterInfo waitForCluster(ClusterHealthStatus status, TimeValue timeout, int expectedNodeCount) throws IOException {
-        ClusterInfo clusterInfo = new ClusterInfo();
+    public void waitForCluster(ClusterHealthStatus status, TimeValue timeout, int expectedNodeCount) throws IOException {
         Client client = clientNode().getInternalNodeClient();
 
-        try {
+        
             log.debug("waiting for cluster state {} and {} nodes", status.name(), expectedNodeCount);
             AdminClient adminClient = client.admin();
 
@@ -338,67 +311,7 @@ public class LocalOpenSearchCluster {
             }
 
             assertEquals(expectedNodeCount, healthResponse.getNumberOfNodes());
-
-            final NodesInfoResponse nodesInfoResponse = adminClient.cluster().nodesInfo(new NodesInfoRequest()).actionGet();
-
-            final List<NodeInfo> nodes = nodesInfoResponse.getNodes();
-
-            final List<NodeInfo> masterNodes = nodes.stream()
-                    .filter(nodeInfo -> nodeInfo.getNode().getRoles().contains(DiscoveryNodeRole.CLUSTER_MANAGER_ROLE)).collect(Collectors.toList());
-
-            final List<NodeInfo> dataNodes = nodes.stream().filter(nodeInfo -> nodeInfo.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE)
-                    && !nodeInfo.getNode().getRoles().contains(DiscoveryNodeRole.CLUSTER_MANAGER_ROLE)).collect(Collectors.toList());
-
-            final List<NodeInfo> clientNodes = nodes.stream()
-                    .filter(nodeInfo -> !nodeInfo.getNode().getRoles().contains(DiscoveryNodeRole.CLUSTER_MANAGER_ROLE)
-                            && !nodeInfo.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE))
-                    .collect(Collectors.toList());
-
-            for (NodeInfo nodeInfo : masterNodes) {
-                final TransportAddress is = nodeInfo.getInfo(TransportInfo.class).getAddress().publishAddress();
-                clusterInfo.nodePort = is.getPort();
-                clusterInfo.nodeHost = is.getAddress();
-            }
-
-            Predicate<NodeInfo> hasHttpAddressPredicate = nodeInfo -> nodeInfo.getInfo(HttpInfo.class) != null
-                    && nodeInfo.getInfo(HttpInfo.class).address() != null;
-
-            if (!clientNodes.isEmpty()) {
-                NodeInfo nodeInfo = clientNodes.get(0);
-                if (hasHttpAddressPredicate.test(nodeInfo)) {
-                    final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
-                    clusterInfo.httpPort = his.getPort();
-                    clusterInfo.httpHost = his.getAddress();
-                } else {
-                    throw new RuntimeException("no http host/port for client node");
-                }
-            } else if (!dataNodes.isEmpty()) {
-                for (NodeInfo nodeInfo : dataNodes) {
-                    if (hasHttpAddressPredicate.test(nodeInfo)) {
-                        final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
-                        clusterInfo.httpPort = his.getPort();
-                        clusterInfo.httpHost = his.getAddress();
-                        break;
-                    }
-                }
-            } else {
-                for (NodeInfo nodeInfo : nodes) {
-                    if (hasHttpAddressPredicate.test(nodeInfo)) {
-                        final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
-                        clusterInfo.httpPort = his.getPort();
-                        clusterInfo.httpHost = his.getAddress();
-                        break;
-                    }
-                }
-            }
-
-            for (NodeInfo nodeInfo : nodes) {
-                clusterInfo.httpAdresses.add(nodeInfo.getInfo(HttpInfo.class).address().publishAddress());
-            }
-        } catch (final OpenSearchTimeoutException e) {
-            throw new IOException("timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
-        }
-        return clusterInfo;
+       
     }
 
     @Override
@@ -467,8 +380,8 @@ public class LocalOpenSearchCluster {
 
         CompletableFuture<String> start() {
             CompletableFuture<String> completableFuture = new CompletableFuture<>();
-
-            this.node = new PluginAwareNode(nodeSettings.masterNode, getEsSettings(), nodeSettings.getPlugins(additionalPlugins));
+            Class<? extends Plugin>[] mergedPlugins = nodeSettings.pluginsWithAddition(additionalPlugins);
+            this.node = new PluginAwareNode(nodeSettings.masterNode, getOpenSearchSettings(), mergedPlugins);
 
             new Thread(new Runnable() {
 
@@ -561,8 +474,8 @@ public class LocalOpenSearchCluster {
             return transportAddress;
         }
 
-        private Settings getEsSettings() {
-            Settings settings = getMinimalEsSettings();
+        private Settings getOpenSearchSettings() {
+            Settings settings = getMinimalOpenSearchSettings();
 
             if (nodeSettingsSupplier != null) {
                 // TODO node number
@@ -572,7 +485,7 @@ public class LocalOpenSearchCluster {
             return settings;
         }
 
-        private Settings getMinimalEsSettings() {
+        private Settings getMinimalOpenSearchSettings() {
             return Settings.builder().put("node.name", nodeName).put("node.data", nodeSettings.dataNode).put("node.master", nodeSettings.masterNode)
                     .put("cluster.name", clusterName).put("path.home", nodeHomeDir.toPath()).put("path.data", dataDir.toPath())
                     .put("path.logs", logsDir.toPath()).putList("cluster.initial_master_nodes", initialMasterHosts)

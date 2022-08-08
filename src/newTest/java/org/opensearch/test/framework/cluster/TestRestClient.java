@@ -29,6 +29,7 @@
 package org.opensearch.test.framework.cluster;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -41,9 +42,12 @@ import java.util.Set;
 
 import javax.net.ssl.SSLContext;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
@@ -64,20 +68,16 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import org.opensearch.common.Strings;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.security.DefaultObjectMapper;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Lists;
 
 public class TestRestClient implements AutoCloseable {
 	
     private static final Logger log = LogManager.getLogger(TestRestClient.class);
 
     private boolean enableHTTPClientSSL = true;
-    private boolean enableHTTPClientSSLv3Only = false;
     private boolean sendHTTPClientCertificate = false;
     private InetSocketAddress nodeHttpAddress;
     private RequestConfig requestConfig;
@@ -94,25 +94,25 @@ public class TestRestClient implements AutoCloseable {
         this.sslContext = sslContext;
     }
 
-    public HttpResponse get(String path, Header... headers) throws Exception {
+    public HttpResponse get(String path, Header... headers) {
         return executeRequest(new HttpGet(getHttpServerUri() + "/" + path), headers);
     }
 
-    public HttpResponse getAuthInfo( Header... headers) throws Exception {
+    public HttpResponse getAuthInfo( Header... headers) {
         return executeRequest(new HttpGet(getHttpServerUri() + "/_opendistro/_security/authinfo?pretty"), headers);
     }
 
-    public HttpResponse head(String path, Header... headers) throws Exception {
+    public HttpResponse head(String path, Header... headers) {
         return executeRequest(new HttpHead(getHttpServerUri() + "/" + path), headers);
     }
 
-    public HttpResponse options(String path, Header... headers) throws Exception {
+    public HttpResponse options(String path, Header... headers) {
         return executeRequest(new HttpOptions(getHttpServerUri() + "/" + path), headers);
     }
 
-    public HttpResponse putJson(String path, String body, Header... headers) throws Exception {
+    public HttpResponse putJson(String path, String body, Header... headers) {
         HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(body));
+        uriRequest.setEntity(toStringEntity(body));
 
         HttpResponse response = executeRequest(uriRequest, mergeHeaders(CONTENT_TYPE_JSON, headers));
 
@@ -124,11 +124,19 @@ public class TestRestClient implements AutoCloseable {
         return response;
     }
 
-    public HttpResponse putJson(String path, ToXContentObject body) throws Exception {
+    private StringEntity toStringEntity(String body) {
+        try {
+            return new StringEntity(body);
+        } catch (UnsupportedEncodingException e) {
+            throw new RestClientException("Cannot create string entity", e);
+        }
+    }
+
+    public HttpResponse putJson(String path, ToXContentObject body) {
         return putJson(path, Strings.toString(body));
     }
 
-    public HttpResponse put(String path) throws Exception {
+    public HttpResponse put(String path) {
         HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
         HttpResponse response = executeRequest(uriRequest);
 
@@ -140,37 +148,35 @@ public class TestRestClient implements AutoCloseable {
         return response;
     }
 
-    public HttpResponse delete(String path, Header... headers) throws Exception {
+    public HttpResponse delete(String path, Header... headers) {
         return executeRequest(new HttpDelete(getHttpServerUri() + "/" + path), headers);
     }
 
-    public HttpResponse postJson(String path, String body, Header... headers) throws Exception {
+    public HttpResponse postJson(String path, String body, Header... headers) {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(body));
+        uriRequest.setEntity(toStringEntity(body));
         return executeRequest(uriRequest, mergeHeaders(CONTENT_TYPE_JSON, headers));
     }
 
-    public HttpResponse postJson(String path, ToXContentObject body) throws Exception {
+    public HttpResponse postJson(String path, ToXContentObject body) {
         return postJson(path, Strings.toString(body));
     }
 
-    public HttpResponse post(String path) throws Exception {
+    public HttpResponse post(String path) {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
         return executeRequest(uriRequest);
     }
 
-    public HttpResponse patch(String path, String body) throws Exception {
+    public HttpResponse patch(String path, String body) {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(body));
+        uriRequest.setEntity(toStringEntity(body));
         return executeRequest(uriRequest, CONTENT_TYPE_JSON);
     }
 
-    public HttpResponse executeRequest(HttpUriRequest uriRequest, Header... requestSpecificHeaders) throws Exception {
+    public HttpResponse executeRequest(HttpUriRequest uriRequest, Header... requestSpecificHeaders) {
 
-        CloseableHttpClient httpClient = null;
-        try {
+        try(CloseableHttpClient httpClient = getHTTPClient()) {
 
-            httpClient = getHTTPClient();
 
             if (requestSpecificHeaders != null && requestSpecificHeaders.length > 0) {
                 for (int i = 0; i < requestSpecificHeaders.length; i++) {
@@ -186,11 +192,8 @@ public class TestRestClient implements AutoCloseable {
             HttpResponse res = new HttpResponse(httpClient.execute(uriRequest));
             log.debug(res.getBody());
             return res;
-        } finally {
-
-            if (httpClient != null) {
-                httpClient.close();
-            }
+        } catch (IOException e) {
+            throw new RestClientException("Error occured during HTTP request execution", e);
         }
     }
 
@@ -199,35 +202,15 @@ public class TestRestClient implements AutoCloseable {
         return this;
     }
 
-    private void cleanupResources() {
-        if (puttedResourcesList.size() > 0) {
-            log.info("Cleaning up " + puttedResourcesList);
-
-            for (String resource : Lists.reverse(puttedResourcesList)) {
-                try {
-                    delete(resource);
-                } catch (Exception e) {
-                    log.error("Error cleaning up created resources " + resource, e);
-                }
-            }
-        }
-    }
-
     protected final String getHttpServerUri() {
         return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + nodeHttpAddress.getHostString() + ":" + nodeHttpAddress.getPort();
     }
 
-	protected final CloseableHttpClient getHTTPClient() throws Exception {
+	protected final CloseableHttpClient getHTTPClient() {
 
 		final HttpClientBuilder hcb = HttpClients.custom();
 
 		String[] protocols = null;
-
-		if (enableHTTPClientSSLv3Only) {
-			protocols = new String[] { "SSLv3" };
-		} else {
-			protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
-		}
 
 		final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(this.sslContext, protocols, null,
 				NoopHostnameVerifier.INSTANCE);
@@ -317,10 +300,40 @@ public class TestRestClient implements AutoCloseable {
             return header == null ? Collections.emptyList() : Arrays.asList(header);
         }
 
-        public JsonNode toJsonNode() throws JsonProcessingException, IOException {
+        public String getTextFromJsonBody(String jsonPointer) {        
+            return getJsonNodeAt(jsonPointer).asText();        	
+        }
+        
+        public int getIntFromJsonBody(String jsonPointer) {        
+            return getJsonNodeAt(jsonPointer).asInt(); 	
+        }
+
+        public Boolean getBooleanFromJsonBody(String jsonPointer) {        
+            return getJsonNodeAt(jsonPointer).asBoolean();    	
+        }
+
+        public Double getDoubleFromJsonBody(String jsonPointer) {        
+            return getJsonNodeAt(jsonPointer).asDouble();	
+        }
+
+        public Long getLongFromJsonBody(String jsonPointer) {        
+            return getJsonNodeAt(jsonPointer).asLong();
+        }
+
+        private JsonNode getJsonNodeAt(String jsonPointer) {
+        	try {
+				return toJsonNode().at(jsonPointer);
+			} catch (IOException e) {
+				throw new IllegalArgumentException("Cound not convert response body to JSON node ",e);
+			}
+        }
+
+        private JsonNode toJsonNode() throws JsonProcessingException, IOException {
             return DefaultObjectMapper.objectMapper.readTree(getBody());
         }
 
+        
+        
         @Override
         public String toString() {
             return "HttpResponse [inner=" + inner + ", body=" + body + ", header=" + Arrays.toString(header) + ", statusCode=" + statusCode
@@ -350,11 +363,6 @@ public class TestRestClient implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() throws IOException {
-        cleanupResources();
-    }
-
     public boolean isSendHTTPClientCertificate() {
         return sendHTTPClientCertificate;
     }
@@ -362,5 +370,10 @@ public class TestRestClient implements AutoCloseable {
     public void setSendHTTPClientCertificate(boolean sendHTTPClientCertificate) {
         this.sendHTTPClientCertificate = sendHTTPClientCertificate;
     }
+
+	@Override
+	public void close() {
+		// TODO: Is there anything to clean up here?		
+	}
 
 }

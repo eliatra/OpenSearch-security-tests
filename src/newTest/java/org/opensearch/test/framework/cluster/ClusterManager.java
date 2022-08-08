@@ -28,11 +28,12 @@
 
 package org.opensearch.test.framework.cluster;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.opensearch.index.reindex.ReindexPlugin;
@@ -43,9 +44,9 @@ import org.opensearch.search.aggregations.matrix.MatrixAggregationPlugin;
 import org.opensearch.security.OpenSearchSecurityPlugin;
 import org.opensearch.transport.Netty4Plugin;
 
-import com.google.common.collect.Lists;
+import static java.util.Collections.unmodifiableList;
 
-public enum ClusterConfiguration {
+public enum ClusterManager {
     //first one needs to be a master
     //HUGE(new NodeSettings(true, false, false), new NodeSettings(true, false, false), new NodeSettings(true, false, false), new NodeSettings(false, true,false), new NodeSettings(false, true, false)),
 
@@ -62,20 +63,20 @@ public enum ClusterConfiguration {
 
     private List<NodeSettings> nodeSettings = new LinkedList<>();
 
-    private ClusterConfiguration(NodeSettings... settings) {
+    private ClusterManager(NodeSettings... settings) {
         nodeSettings.addAll(Arrays.asList(settings));
     }
 
     public List<NodeSettings> getNodeSettings() {
-        return Collections.unmodifiableList(nodeSettings);
+        return unmodifiableList(nodeSettings);
     }
 
     public List<NodeSettings> getMasterNodeSettings() {
-        return Collections.unmodifiableList(nodeSettings.stream().filter(a -> a.masterNode).collect(Collectors.toList()));
+        return unmodifiableList(nodeSettings.stream().filter(a -> a.masterNode).collect(Collectors.toList()));
     }
 
     public List<NodeSettings> getNonMasterNodeSettings() {
-        return Collections.unmodifiableList(nodeSettings.stream().filter(a -> !a.masterNode).collect(Collectors.toList()));
+        return unmodifiableList(nodeSettings.stream().filter(a -> !a.masterNode).collect(Collectors.toList()));
     }
 
     public int getNodes() {
@@ -95,37 +96,39 @@ public enum ClusterConfiguration {
     }
 
     public static class NodeSettings {
-        public boolean masterNode;
-        public boolean dataNode;
-        public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, OpenSearchSecurityPlugin.class, MatrixAggregationPlugin.class,
-                ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
+
+        private final static List<Class<? extends Plugin>> DEFAULT_PLUGINS = List.of(Netty4Plugin.class, OpenSearchSecurityPlugin.class,
+            MatrixAggregationPlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
+        public final boolean masterNode;
+        public final boolean dataNode;
+        public final List<Class<? extends Plugin>> plugins;
 
         public NodeSettings(boolean masterNode, boolean dataNode) {
-            super();
-            this.masterNode = masterNode;
-            this.dataNode = dataNode;
+            this(masterNode, dataNode, Collections.emptyList());
         }
 
         public NodeSettings(boolean masterNode, boolean dataNode, List<Class<? extends Plugin>> additionalPlugins) {
-            this(masterNode, dataNode);
+            super();
+            this.masterNode = masterNode;
+            this.dataNode = dataNode;
+            this.plugins = mergePlugins(additionalPlugins, DEFAULT_PLUGINS);
+        }
 
-            this.plugins.addAll(additionalPlugins);
+        private List<Class<? extends Plugin>> mergePlugins(Collection<Class<? extends Plugin>>...plugins) {
+            List<Class<? extends Plugin>> mergedPlugins = Arrays.stream(plugins)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+            return unmodifiableList(mergedPlugins);
         }
 
         @SuppressWarnings("unchecked")
         public Class<? extends Plugin>[] getPlugins() {
             return plugins.toArray(new Class[0]);
         }
-        
-        @SuppressWarnings("unchecked")
-        public Class<? extends Plugin>[] getPlugins(List<Class<? extends Plugin>> additionalPlugins) {
-            List<Class<? extends Plugin>> plugins = new ArrayList<>(this.plugins);
-            
-            if (additionalPlugins != null) {
-                plugins.addAll(additionalPlugins);
-            }
-            
-            return plugins.toArray(new Class[0]);
+
+        public Class<? extends Plugin>[] pluginsWithAddition(List<Class<? extends Plugin>> additionalPlugins) {
+            return mergePlugins(plugins, additionalPlugins).toArray(Class[]::new);
         }
     }
 }

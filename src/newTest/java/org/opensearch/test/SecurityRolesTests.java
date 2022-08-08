@@ -26,20 +26,26 @@
 
 package org.opensearch.test;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import org.apache.http.HttpStatus;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+
 import org.opensearch.test.framework.TestSecurityConfig;
 import org.opensearch.test.framework.TestSecurityConfig.Role;
-import org.opensearch.test.framework.cluster.ClusterConfiguration;
+import org.opensearch.test.framework.cluster.ClusterManager;
 import org.opensearch.test.framework.cluster.LocalCluster;
 import org.opensearch.test.framework.cluster.TestRestClient;
 import org.opensearch.test.framework.cluster.TestRestClient.HttpResponse;
 
-import com.fasterxml.jackson.core.JsonPointer;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.AUTHC_HTTPBASIC_INTERNAL;
 
-public class SecurityRolesTests extends AbstractIntegrationTest {
+@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
+public class SecurityRolesTests {
 
 	protected final static TestSecurityConfig.User USER_SR = new TestSecurityConfig.User("sr_user").roles(
 			new Role("abc_ber").indexPermissions("*").on("*").clusterPermissions("*"),
@@ -47,29 +53,22 @@ public class SecurityRolesTests extends AbstractIntegrationTest {
 
 	@ClassRule
 	public static LocalCluster cluster = new LocalCluster.Builder()
-			.clusterConfiguration(ClusterConfiguration.THREE_MASTERS).anonymousAuth(true)
+			.clusterConfiguration(ClusterManager.THREE_MASTERS).anonymousAuth(true)
 			.authc(AUTHC_HTTPBASIC_INTERNAL).users(USER_SR).build();
 
 	@Test
-	public void testSecurityRolesAnon() throws Exception {
+	public void testSecurityRoles() throws Exception {
 
 		try (TestRestClient client = cluster.getRestClient(USER_SR)) {
 			HttpResponse response = client.getAuthInfo();
-			Assert.assertEquals(response.getStatusCode(), HttpStatus.SC_OK);
+			assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
-			// Check username
-			JsonPointer jsonPointer = JsonPointer.compile("/user_name");
-			String username = response.toJsonNode().at(jsonPointer).asText();
-			Assert.assertEquals("sr_user", username);
-
-			// Check security roles
-			jsonPointer = JsonPointer.compile("/roles/0");
-			String securityRole = response.toJsonNode().at(jsonPointer).asText();
-			Assert.assertEquals("user_sr_user__abc_ber", securityRole);
+			// Check username		
+			assertThat(response.getTextFromJsonBody("/user_name"), equalTo("sr_user"));
 			
-			jsonPointer = JsonPointer.compile("/roles/1");
-			securityRole = response.toJsonNode().at(jsonPointer).asText();
-			Assert.assertEquals("user_sr_user__def_efg", securityRole);
+			// Check security roles
+			assertThat(response.getTextFromJsonBody("/roles/0"), equalTo("user_sr_user__abc_ber"));
+			assertThat(response.getTextFromJsonBody("/roles/1"), equalTo("user_sr_user__def_efg"));
 
 		}
 	}
