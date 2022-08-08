@@ -84,6 +84,12 @@ forbiddenPatterns.enabled = false
 testingConventions.enabled = false
 // Conflicts between runtime kafka-clients:3.0.1 & testRuntime kafka-clients:3.0.1:test
 jarHell.enabled = false
+tasks.whenTaskAdded {task ->
+    if(task.name.contains("forbiddenApisNewTest")) {
+        task.enabled = false
+    }
+}
+
 
 test {
     include '**/*.class'
