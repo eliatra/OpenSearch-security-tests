@@ -393,6 +393,7 @@ dependencies {
     newTestImplementation "org.opensearch.plugin:percolator-client:${opensearch_version}"
     newTestImplementation 'commons-io:commons-io:2.7'
     newTestImplementation 'org.apache.logging.log4j:log4j-core:2.17.1'
+    newTestImplementation 'org.hamcrest:hamcrest:2.1'
 }
 
 jar {
