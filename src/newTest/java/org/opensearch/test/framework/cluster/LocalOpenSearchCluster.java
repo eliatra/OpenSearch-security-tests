@@ -38,9 +38,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.net.InetAddresses;
@@ -154,18 +156,19 @@ public class LocalOpenSearchCluster {
     }
 
     public void stop() {
-
+        List<CompletableFuture<Boolean>> stopFutures = new ArrayList<>();
         for (Node node : clientNodes) {
-            node.stop();
+            stopFutures.add(node.stop(2, TimeUnit.SECONDS));
         }
 
         for (Node node : dataNodes) {
-            node.stop();
+            stopFutures.add(node.stop(2, TimeUnit.SECONDS));
         }
 
         for (Node node : masterNodes) {
-            node.stop();
+            stopFutures.add(node.stop(2, TimeUnit.SECONDS));
         }
+        CompletableFuture.allOf(stopFutures.toArray(size -> new CompletableFuture[size])).join();
     }
 
     public void destroy() {
@@ -343,6 +346,7 @@ public class LocalOpenSearchCluster {
     }
 
     public class Node implements OpenSearchClientProvider {
+
         private final String nodeName;
         private final NodeSettings nodeSettings;
         private final File nodeHomeDir;
@@ -352,8 +356,8 @@ public class LocalOpenSearchCluster {
         private final int httpPort;
         private final InetSocketAddress httpAddress;
         private final InetSocketAddress transportAddress;
-        private PluginAwareNode node;
-        private boolean running = false;
+        private volatile PluginAwareNode node;
+        private volatile boolean running = false;
         private boolean portCollision = false;
 
         Node(NodeSettings nodeSettings, int transportPort, int httpPort) {
@@ -432,21 +436,27 @@ public class LocalOpenSearchCluster {
             return node.injector().getInstance(clazz);
         }
 
-        public void stop() {
-            try {
-                log.info("Stopping {}", this);
+        public CompletableFuture<Boolean> stop(long timeout, TimeUnit timeUnit) {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    log.info("Stopping {}", this);
 
-                running = false;
+                    running = false;
 
-                if (node != null) {
-                    node.close();
-                    node = null;
-                    Thread.sleep(10);
+                    if (node != null) {
+                        node.close();
+                        boolean stopped = node.awaitClose(timeout, timeUnit);
+                        node = null;
+                        return stopped;
+                    } else {
+                        return false;
+                    }
+                } catch (Throwable e) {
+                    String message = "Error while stopping " + this;
+                    log.warn(message, e);
+                    throw new RuntimeException(message, e);
                 }
-
-            } catch (Throwable e) {
-                log.warn("Error while stopping " + this, e);
-            }
+            });
         }
 
         @Override
