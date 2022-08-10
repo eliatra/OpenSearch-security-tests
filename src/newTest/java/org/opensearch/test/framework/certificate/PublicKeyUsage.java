@@ -50,13 +50,13 @@ enum PublicKeyUsage {
 
     int asInt(){
         if(isExtendedUsage()) {
-            throw new CertificateException("Integer value is not available for extended key usage");
+            throw new RuntimeException("Integer value is not available for extended key usage");
         }
         return keyUsage;
     }
     KeyPurposeId getKeyPurposeId() {
         if(isExtendedUsage() == false){
-            throw new CertificateException("Key purpose id is not available.");
+            throw new RuntimeException("Key purpose id is not available.");
         }
         return id;
     }

@@ -101,7 +101,7 @@ public class TestCertificates {
         if (node >= MAX_NUMBER_OF_NODE_CERTIFICATES) {
             String message = String.format("Cannot get certificate for node %d, number of created certificates for nodes is %d", node,
                     MAX_NUMBER_OF_NODE_CERTIFICATES);
-            throw new CertificateException(message);
+            throw new RuntimeException(message);
         }
     }
 

@@ -60,7 +60,7 @@ class PemConverter {
         try (JcaPEMWriter writer = new JcaPEMWriter(stringWriter)) {
             writer.writeObject(requireNonNull(certificate, "Certificate is required."));
         } catch (Exception e) {
-            throw new CertificateException("Cannot write certificate in PEM format", e);
+            throw new RuntimeException("Cannot write certificate in PEM format", e);
         }
         return stringWriter.toString();
     }
@@ -76,7 +76,7 @@ class PemConverter {
             savePrivateKey(stringWriter, requireNonNull(privateKey, "Private key is required."), privateKeyPassword);
             return stringWriter.toString();
         } catch (IOException e) {
-            throw new CertificateException("Cannot convert private key into PEM format.", e);
+            throw new RuntimeException("Cannot convert private key into PEM format.", e);
         }
     }
 
@@ -85,7 +85,7 @@ class PemConverter {
             writer.writeObject(createPkcs8PrivateKeyPem(privateKey, privateKeyPassword));
         } catch (Exception e) {
             log.error("Error while writing private key.", e);
-            throw new CertificateException("Error while writing private key ", e);
+            throw new RuntimeException("Error while writing private key ", e);
         }
     }
 
@@ -95,7 +95,7 @@ class PemConverter {
             return new PKCS8Generator(PrivateKeyInfo.getInstance(privateKey.getEncoded()), outputEncryptor).generate();
         } catch (PemGenerationException | OperatorCreationException e) {
             log.error("Creating PKCS8 private key failed", e);
-            throw new CertificateException("Creating PKCS8 private key failed", e);
+            throw new RuntimeException("Creating PKCS8 private key failed", e);
         }
     }
 

@@ -106,7 +106,7 @@ class CertificatesIssuer {
             return new CertificateData(x509CertificateHolder, publicAndPrivateKey);
         } catch (OperatorCreationException | CertIOException e) {
             log.error("Error while generating certificate", e);
-            throw new CertificateException("Error while generating self signed certificate", e);
+            throw new RuntimeException("Error while generating self signed certificate", e);
         }
     }
 
@@ -131,7 +131,7 @@ class CertificatesIssuer {
             return new CertificateData(x509CertificateHolder, publicAndPrivateKey);
         } catch (OperatorCreationException | CertIOException e) {
             log.error("Error while generating signed certificate", e);
-            throw new CertificateException("Error while generating signed certificate", e);
+            throw new RuntimeException("Error while generating signed certificate", e);
         }
     }
 
@@ -193,19 +193,19 @@ class CertificatesIssuer {
             return new JcaX509ExtensionUtils();
         } catch (NoSuchAlgorithmException e) {
             log.error("Getting certificate extension utils failed", e);
-            throw new CertificateException("Getting certificate extension utils failed", e);
+            throw new RuntimeException("Getting certificate extension utils failed", e);
         }
     }
 
     private X500Name stringToX500Name(String distinguishedName) {
         if (Strings.isNullOrEmpty(distinguishedName)) {
-            throw new CertificateException("No DN (distinguished name) must not be null or empty");
+            throw new RuntimeException("No DN (distinguished name) must not be null or empty");
         }
         try {
             return new X500Name(RFC4519Style.INSTANCE, distinguishedName);
         } catch (IllegalArgumentException e) {
             String message = String.format("Invalid DN (distinguished name) specified for %s certificate.", distinguishedName);
-            throw new CertificateException(message, e);
+            throw new RuntimeException(message, e);
         }
     }
 

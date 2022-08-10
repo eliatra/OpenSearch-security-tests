@@ -54,7 +54,7 @@ class AlgorithmKit {
 
     private static void notEmptyAlgorithmName(String signatureAlgorithmName) {
         if(Strings.isNullOrEmpty(signatureAlgorithmName)){
-            throw new CertificateException("Algorithm name is required.");
+            throw new RuntimeException("Algorithm name is required.");
         }
     }
 
@@ -88,7 +88,7 @@ class AlgorithmKit {
 
     private static void positiveKeySize(int keySize) {
         if(keySize <= 0) {
-            throw new CertificateException("Key size must be a positive integer value, provided: " + keySize);
+            throw new RuntimeException("Key size must be a positive integer value, provided: " + keySize);
         }
     }
 
@@ -116,7 +116,7 @@ class AlgorithmKit {
         } catch (NoSuchAlgorithmException e) {
             String message = "Error while initializing RSA asymmetric key generator.";
             log.error(message, e);
-            throw new CertificateException(message, e);
+            throw new RuntimeException(message, e);
         }
     }
 
@@ -130,7 +130,7 @@ class AlgorithmKit {
         } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             String message = "Error while initializing ECDSA asymmetric key generator.";
             log.error(message, e);
-            throw new CertificateException(message, e);
+            throw new RuntimeException(message, e);
         }
     }
 
