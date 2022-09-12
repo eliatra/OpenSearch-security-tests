@@ -11,7 +11,7 @@
 
 package org.opensearch.security.privileges;
 
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakLingering;
 import org.apache.http.HttpStatus;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -33,7 +33,11 @@ import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.AUTHC
 * framework for direct comparison
 */
 @RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
-@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
+/*
+ * Wait for threads started by the io.netty.util.concurrent.GlobalEventExecutor.
+ * Alternatively, we can create new filter (implement the ThreadFilter interface) and do not track these threads.
+ */
+@ThreadLeakLingering(linger = 1000)
 public class PrivilegesEvaluatorTest {
 
 	protected final static TestSecurityConfig.User NEGATIVE_LOOKAHEAD = new TestSecurityConfig.User(

@@ -404,26 +404,32 @@ public class LocalOpenSearchCluster {
 		}
 
 		public CompletableFuture<Boolean> stop(long timeout, TimeUnit timeUnit) {
-			return CompletableFuture.supplyAsync(() -> {
-				try {
-					log.info("Stopping {}", this);
+			CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
 
-					running = false;
+			new Thread(new Runnable() {
 
-					if (node != null) {
-						node.close();
-						boolean stopped = node.awaitClose(timeout, timeUnit);
-						node = null;
-						return stopped;
-					} else {
-						return false;
+				@Override
+				public void run() {
+					try {
+						log.info("Stopping {}", this);
+						running = false;
+						if (node != null) {
+							node.close();
+							boolean stopped = node.awaitClose(timeout, timeUnit);
+							node = null;
+							completableFuture.complete(stopped);
+						} else {
+							completableFuture.complete(false);
+						}
+					} catch (Throwable e) {
+						String message = "Error while stopping " + this;
+						log.warn(message, e);
+						completableFuture.completeExceptionally(e);
 					}
-				} catch (Throwable e) {
-					String message = "Error while stopping " + this;
-					log.warn(message, e);
-					throw new RuntimeException(message, e);
 				}
-			});
+			}).start();
+
+			return completableFuture;
 		}
 
 		@Override
