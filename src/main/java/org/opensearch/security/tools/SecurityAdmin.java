@@ -26,6 +26,7 @@
 
 package org.opensearch.security.tools;
 
+// CS-SUPPRESS-SINGLE: RegexpSingleline https://github.com/opensearch-project/OpenSearch/issues/3663
 import java.io.ByteArrayInputStream;
 import java.io.Console;
 import java.io.File;
@@ -139,6 +140,7 @@ import org.opensearch.security.support.SecurityJsonNode;
 
 import static org.opensearch.common.xcontent.DeprecationHandler.THROW_UNSUPPORTED_OPERATION;
 import static org.opensearch.security.support.SecurityUtils.replaceEnvVars;
+// CS-ENFORCE-SINGLE
 
 @SuppressWarnings("deprecation")
 public class SecurityAdmin {
@@ -713,7 +715,8 @@ public class SecurityAdmin {
 
             final boolean legacy = createLegacyMode || (indexExists
                     && securityIndex.getMappings() != null
-                    && securityIndex.getMappings().get(index) != null);
+                    && securityIndex.getMappings().get(index) != null
+                    && securityIndex.getMappings().get(index).getSourceAsMap().containsKey("security"));
             
             if(legacy) {
                 System.out.println("Legacy index '"+index+"' (ES 6) detected (or forced). You should migrate the configuration!");
@@ -736,6 +739,7 @@ public class SecurityAdmin {
                 final boolean populateFileIfEmpty = true;
                 success = retrieveFile(restHighLevelClient, cd+"nodes_dn_"+date+".yml", index, "nodesdn", legacy, populateFileIfEmpty) && success;
                 success = retrieveFile(restHighLevelClient, cd+"whitelist_"+date+".yml", index, "whitelist", legacy, populateFileIfEmpty) && success;
+                success = retrieveFile(restHighLevelClient, cd+"allowlist_"+date+".yml", index, "allowlist", legacy, populateFileIfEmpty) && success;
                 return (success?0:-1);
             }
 
@@ -1195,6 +1199,7 @@ public class SecurityAdmin {
         }
         success = retrieveFile(tc, backupDir.getAbsolutePath()+"/nodes_dn.yml", index, "nodesdn", legacy, true) && success;
         success = retrieveFile(tc, backupDir.getAbsolutePath()+"/whitelist.yml", index, "whitelist", legacy, true) && success;
+        success = retrieveFile(tc, backupDir.getAbsolutePath()+"/allowlist.yml", index, "allowlist", legacy, true) && success;
         success = retrieveFile(tc, backupDir.getAbsolutePath() + "/audit.yml", index, "audit", legacy) && success;
 
         return success?0:-1;
@@ -1217,6 +1222,9 @@ public class SecurityAdmin {
         success = uploadFile(tc, cd+"whitelist.yml", index, "whitelist", legacy, resolveEnvVars) && success;
         if (new File(cd+"audit.yml").exists()) {
             success = uploadFile(tc, cd + "audit.yml", index, "audit", legacy, resolveEnvVars) && success;
+        }
+        if (new File(cd+"allowlist.yml").exists()) {
+            success = uploadFile(tc, cd + "allowlist.yml", index, "allowlist", legacy, resolveEnvVars) && success;
         }
 
         if(!success) {
