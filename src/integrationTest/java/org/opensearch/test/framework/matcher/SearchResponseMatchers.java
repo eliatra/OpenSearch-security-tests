@@ -53,6 +53,10 @@ public class SearchResponseMatchers {
 		return new ContainsAggregationWithNameAndTypeMatcher(expectedAggregationName, expectedAggregationType);
 	}
 
+	public static Matcher<SearchResponse> searchHitsDocumentsContainExactlyFieldsWithNames(String expectedIndexName, String... expectedFieldsNames) {
+		return new SearchHitsDocumentsContainExactlyFieldsWithNamesMatcher(expectedIndexName, expectedFieldsNames);
+	}
+
 	static Long readTotalHits(SearchResponse searchResponse) {
 		return Optional.ofNullable(searchResponse)
 			.map(SearchResponse::getHits)
