@@ -250,7 +250,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 		private boolean loadConfigurationIntoIndex = true;
 
 		public Builder() {
-			this.testCertificates = new TestCertificates();
 		}
 
 		public Builder dependsOn(Object object) {
@@ -358,6 +357,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 			return this;
 		}
 
+		public Builder testCertificates(TestCertificates certificates) {
+			this.testCertificates = certificates;
+			return this;
+		}
+
 		public Builder anonymousAuth(boolean anonAuthEnabled) {
 			testSecurityConfig.anonymousAuth(anonAuthEnabled);
 			return this;
@@ -370,7 +374,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 
 		public LocalCluster build() {
 			try {
-
+				if(testCertificates == null) {
+					this.testCertificates = new TestCertificates();
+				}
 				clusterName += "_" + num.incrementAndGet();
 				Settings settings = nodeOverrideSettingsBuilder.build();
 				return new LocalCluster(clusterName, testSecurityConfig, sslOnly, settings, clusterManager, plugins,

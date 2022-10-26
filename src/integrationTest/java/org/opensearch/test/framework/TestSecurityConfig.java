@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
@@ -462,14 +463,20 @@ public class TestSecurityConfig {
 
 		public static class AuthenticationBackend implements ToXContentObject {
 			private final String type;
-			private Map<String, Object> config = new HashMap();
+			private Supplier<Map<String, Object>> config = () -> new HashMap();
 
 			public AuthenticationBackend(String type) {
 				this.type = type;
 			}
 
 			public AuthenticationBackend config(Map<String, Object> config) {
-				this.config.putAll(config);
+				Map<String, Object> configCopy = new HashMap<>(config);
+				this.config = () -> configCopy;
+				return this;
+			}
+
+			public AuthenticationBackend config(Supplier<Map<String, Object>> configSupplier) {
+				this.config = configSupplier;
 				return this;
 			}
 
@@ -478,7 +485,7 @@ public class TestSecurityConfig {
 				xContentBuilder.startObject();
 
 				xContentBuilder.field("type", type);
-				xContentBuilder.field("config", config);
+				xContentBuilder.field("config", config.get());
 
 				xContentBuilder.endObject();
 				return xContentBuilder;
