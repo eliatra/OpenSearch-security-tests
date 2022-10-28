@@ -59,6 +59,11 @@ public class RecordBuilder {
 		return this;
 	}
 
+	public RecordBuilder uniqueMember(String userDistinguishedName) {
+		record.addAttribute("uniquemember", userDistinguishedName);
+		return this;
+	}
+
 	public RecordBuilder attribute(String name, String value) {
 		record.addAttribute(name, value);
 		return this;

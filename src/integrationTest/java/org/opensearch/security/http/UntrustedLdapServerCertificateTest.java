@@ -1,3 +1,12 @@
+/*
+* Copyright OpenSearch Contributors
+* SPDX-License-Identifier: Apache-2.0
+*
+* The OpenSearch Contributors require contributions made to
+* this file be licensed under the Apache-2.0 license or a
+* compatible open source license.
+*
+*/
 package org.opensearch.security.http;
 
 import java.util.List;
@@ -19,12 +28,12 @@ import org.opensearch.test.framework.cluster.LocalCluster;
 import org.opensearch.test.framework.cluster.TestRestClient;
 import org.opensearch.test.framework.ldap.EmbeddedLDAPServer;
 
-import static org.opensearch.security.http.DirectoryInformationTrees.COMMON_NAME_OPEN_SEARCH;
+import static org.opensearch.security.http.DirectoryInformationTrees.DN_OPEN_SEARCH_PEOPLE_TEST_ORG;
+import static org.opensearch.security.http.DirectoryInformationTrees.DN_PEOPLE_TEST_ORG;
 import static org.opensearch.security.http.DirectoryInformationTrees.LDIF_DATA;
 import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_OPEN_SEARCH;
 import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_SPOCK;
 import static org.opensearch.security.http.DirectoryInformationTrees.USERNAME_ATTRIBUTE;
-import static org.opensearch.security.http.DirectoryInformationTrees.USERS_ROOT;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SEARCH;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SPOCK;
 import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.AUTHC_HTTPBASIC_INTERNAL;
@@ -51,13 +60,13 @@ public class UntrustedLdapServerCertificateTest {
 		.authc(new AuthcDomain("ldap", 2, true)
 			.httpAuthenticator(new HttpAuthenticator("basic").challenge(false))
 			.backend(new AuthenticationBackend("ldap")
-				.config(() -> new LdapAuthenticationConfigBuilder()
+				.config(() -> LdapAuthenticationConfigBuilder.config()
 					// this port is available when embeddedLDAPServer is already started, therefore Supplier interface is used
 					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapsPort()))
 					.enableSsl(true)
-					.bindDn(COMMON_NAME_OPEN_SEARCH)
+					.bindDn(DN_OPEN_SEARCH_PEOPLE_TEST_ORG)
 					.password(PASSWORD_OPEN_SEARCH)
-					.userBase(USERS_ROOT)
+					.userBase(DN_PEOPLE_TEST_ORG)
 					.userSearch(USER_SEARCH)
 					.usernameAttribute(USERNAME_ATTRIBUTE)
 					.penTrustedCasFilePath(TEST_CERTIFICATES.getRootCertificate().getAbsolutePath())

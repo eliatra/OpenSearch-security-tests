@@ -82,6 +82,8 @@ public class TestSecurityConfig {
 	private Map<String, User> internalUsers = new LinkedHashMap<>();
 	private Map<String, Role> roles = new LinkedHashMap<>();
 
+	private Map<String, RolesMapping> rolesMapping = new LinkedHashMap<>();
+
 	private String indexName = ".opendistro_security";
 
 	public TestSecurityConfig() {
@@ -102,6 +104,11 @@ public class TestSecurityConfig {
 		config.authc(authcDomain);
 		return this;
 	}
+
+	public TestSecurityConfig authz(AuthzDomain authzDomain) {
+		config.authz(authzDomain);
+		return this;
+	}
 	public TestSecurityConfig user(User user) {
 		this.internalUsers.put(user.name, user);
 
@@ -114,15 +121,31 @@ public class TestSecurityConfig {
 
 	public TestSecurityConfig roles(Role... roles) {
 		for (Role role : roles) {
+			if(this.roles.containsKey(role.name)) {
+				throw new IllegalStateException("Role with name " + role.name + " is already defined");
+			}
 			this.roles.put(role.name, role);
 		}
 
 		return this;
 	}
 
+	public TestSecurityConfig rolesMapping(RolesMapping...mappings) {
+		for (RolesMapping mapping : mappings) {
+			String roleName = mapping.getRoleName();
+			if(rolesMapping.containsKey(roleName)) {
+				throw new IllegalArgumentException("Role mapping " + roleName + " already exists");
+			}
+			this.rolesMapping.put(roleName, mapping);
+		}
+		return this;
+	}
+
 	public static class Config implements ToXContentObject {
 		private boolean anonymousAuth;
 		private Map<String, AuthcDomain> authcDomainMap = new LinkedHashMap<>();
+
+		private Map<String, AuthzDomain> authzDomainMap = new LinkedHashMap<>();
 
 		public Config anonymousAuth(boolean anonymousAuth) {
 			this.anonymousAuth = anonymousAuth;
@@ -131,6 +154,11 @@ public class TestSecurityConfig {
 
 		public Config authc(AuthcDomain authcDomain) {
 			authcDomainMap.put(authcDomain.id, authcDomain);
+			return this;
+		}
+
+		public Config authz(AuthzDomain authzDomain) {
+			authzDomainMap.put(authzDomain.getId(), authzDomain);
 			return this;
 		}
 
@@ -146,6 +174,9 @@ public class TestSecurityConfig {
 			}
 
 			xContentBuilder.field("authc", authcDomainMap);
+			if(authzDomainMap.isEmpty() == false) {
+				xContentBuilder.field("authz", authzDomainMap);
+			}
 
 			xContentBuilder.endObject();
 			xContentBuilder.endObject();
@@ -503,7 +534,7 @@ public class TestSecurityConfig {
 		writeSingleEntryConfigToIndex(client, CType.CONFIG, config);
 		writeConfigToIndex(client, CType.ROLES, roles);
 		writeConfigToIndex(client, CType.INTERNALUSERS, internalUsers);
-		writeEmptyConfigToIndex(client, CType.ROLESMAPPING);
+		writeConfigToIndex(client, CType.ROLESMAPPING, rolesMapping);
 		writeEmptyConfigToIndex(client, CType.ACTIONGROUPS);
 		writeEmptyConfigToIndex(client, CType.TENANTS);
 		

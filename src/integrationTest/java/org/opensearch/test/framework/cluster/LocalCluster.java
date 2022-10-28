@@ -48,6 +48,8 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.node.PluginAwareNode;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.security.support.ConfigConstants;
+import org.opensearch.test.framework.AuthzDomain;
+import org.opensearch.test.framework.RolesMapping;
 import org.opensearch.test.framework.TestIndex;
 import org.opensearch.test.framework.TestSecurityConfig;
 import org.opensearch.test.framework.TestSecurityConfig.Role;
@@ -342,8 +344,18 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, Ope
 			return this;
 		}
 
+		public Builder rolesMapping(RolesMapping...mappings) {
+			testSecurityConfig.rolesMapping(mappings);
+			return this;
+		}
+
 		public Builder authc(TestSecurityConfig.AuthcDomain authc) {
 			testSecurityConfig.authc(authc);
+			return this;
+		}
+
+		public Builder authz(AuthzDomain authzDomain) {
+			testSecurityConfig.authz(authzDomain);
 			return this;
 		}
 

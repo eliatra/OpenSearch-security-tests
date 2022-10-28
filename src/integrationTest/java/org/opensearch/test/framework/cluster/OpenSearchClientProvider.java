@@ -98,6 +98,20 @@ public interface OpenSearchClientProvider {
 		return getRestClient(user.getName(), user.getPassword(), headers);
 	}
 
+	default RestHighLevelClient getRestHighLevelClient(String username, String password) {
+		return getRestHighLevelClient(new UserCredentialsHolder() {
+			@Override
+			public String getName() {
+				return username;
+			}
+
+			@Override
+			public String getPassword() {
+				return password;
+			}
+		});
+	}
+
 	default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
 		InetSocketAddress httpAddress = getHttpAddress();
 		BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();

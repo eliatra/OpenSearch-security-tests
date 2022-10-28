@@ -3,8 +3,9 @@ package org.opensearch.test.framework;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
-public class LdapAuthenticationConfigBuilder {
+public class LdapAuthenticationConfigBuilder<T extends LdapAuthenticationConfigBuilder> {
 	private boolean enableSsl = false;
 	private boolean enableStartTls = false;
 	private boolean enableSslClientAuth = false;
@@ -18,59 +19,72 @@ public class LdapAuthenticationConfigBuilder {
 
 	private String penTrustedCasFilePath;
 
-	public LdapAuthenticationConfigBuilder enableSsl(boolean enableSsl) {
+	/**
+	* Subclass of <code>this</code>
+	*/
+	private final T builderSubclass;
+
+	protected LdapAuthenticationConfigBuilder(Function<LdapAuthenticationConfigBuilder, T> thisCastFunction) {
+		this.builderSubclass = thisCastFunction.apply(this);
+	}
+
+	public static LdapAuthenticationConfigBuilder<LdapAuthenticationConfigBuilder> config() {
+		return new LdapAuthenticationConfigBuilder<>(Function.identity());
+	}
+
+	public T enableSsl(boolean enableSsl) {
 		this.enableSsl = enableSsl;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder enableStartTls(boolean enableStartTls) {
+	public T enableStartTls(boolean enableStartTls) {
 		this.enableStartTls = enableStartTls;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder enableSslClientAuth(boolean enableSslClientAuth) {
+	public T enableSslClientAuth(boolean enableSslClientAuth) {
 		this.enableSslClientAuth = enableSslClientAuth;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder verifyHostnames(boolean verifyHostnames) {
+	public T verifyHostnames(boolean verifyHostnames) {
 		this.verifyHostnames = verifyHostnames;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder hosts(List<String> hosts) {
+	public T hosts(List<String> hosts) {
 		this.hosts = hosts;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder bindDn(String bindDn) {
+	public T bindDn(String bindDn) {
 		this.bindDn = bindDn;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder password(String password) {
+	public T password(String password) {
 		this.password = password;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder userBase(String userBase) {
+	public T userBase(String userBase) {
 		this.userBase = userBase;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder userSearch(String userSearch) {
+	public T userSearch(String userSearch) {
 		this.userSearch = userSearch;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder usernameAttribute(String usernameAttribute) {
+	public T usernameAttribute(String usernameAttribute) {
 		this.usernameAttribute = usernameAttribute;
-		return this;
+		return builderSubclass;
 	}
 
-	public LdapAuthenticationConfigBuilder penTrustedCasFilePath(String penTrustedCasFilePath) {
+	public T penTrustedCasFilePath(String penTrustedCasFilePath) {
 		this.penTrustedCasFilePath = penTrustedCasFilePath;
-		return this;
+		return builderSubclass;
 	}
 
 	public Map<String, Object> build() {

@@ -1,3 +1,12 @@
+/*
+* Copyright OpenSearch Contributors
+* SPDX-License-Identifier: Apache-2.0
+*
+* The OpenSearch Contributors require contributions made to
+* this file be licensed under the Apache-2.0 license or a
+* compatible open source license.
+*
+*/
 package org.opensearch.security.http;
 
 import org.opensearch.test.framework.ldap.LdifBuilder;
@@ -11,21 +20,31 @@ class DirectoryInformationTrees {
 	public static final String USER_SPOCK = "spock";
 	public static final String PASSWORD_SPOCK = "spocksecret";
 
-	public static final String COMMON_NAME_OPEN_SEARCH = "cn=Open Search,ou=people,o=TEST";
+	public static final String DN_OPEN_SEARCH_PEOPLE_TEST_ORG = "cn=Open Search,ou=people,o=test.org";
 	public static final String PASSWORD_OPEN_SEARCH = "open_search-secret";
 	public static final String USER_OPENS = "opens";
-	public static final String USERS_ROOT = "ou=people,o=TEST";
+	public static final String DN_PEOPLE_TEST_ORG = "ou=people,o=test.org";
 
 	public static final String USER_SEARCH = "(uid={0})";
 	public static final String USERNAME_ATTRIBUTE = "uid";
+	public static final String DN_KIRK_PEOPLE_TEST_ORG = "cn=Kirk,ou=people,o=test.org";
+	public static final String DN_CAPTAIN_SPOCK_PEOPLE_TEST_ORG = "cn=Captain Spock,ou=people,o=test.org";
+	public static final String PASSWORD_CHRISTPHER = "christpher_secret";
+	public static final String DN_CHRISTPHER_PEOPLE_TEST_ORG = "cn=Christpher,ou=people,o=test.org";
+	public static final String CN_GROUP_ADMIN = "admin";
+	public static final String DN_GROUPS_TEST_ORG = "ou=groups,o=test.org";
+	public static final String PASSWORD_LEONARD = "Leonard-secret";
+	public static final String USER_LEONARD = "leonard";
+	public static final String DN_LEONARD_PEOPLE_TEST_ORG = "cn=Leonard,ou=people,o=test.org";
+	public static final String CN_GROUP_CREW = "crew";
 	static final LdifData LDIF_DATA = new LdifBuilder()
-		.root("o=TEST")
+		.root("o=test.org")
 			.dc("TEST")
 			.classes("top", "domain")
-			.newRecord(USERS_ROOT)
+		.newRecord(DN_PEOPLE_TEST_ORG)//"ou=people,o=test.org"
 			.ou("people")
 			.classes("organizationalUnit", "top")
-		.newRecord(COMMON_NAME_OPEN_SEARCH)
+		.newRecord(DN_OPEN_SEARCH_PEOPLE_TEST_ORG)
 			.classes("inetOrgPerson")
 			.cn("Open Search")
 			.sn("Search")
@@ -33,7 +52,7 @@ class DirectoryInformationTrees {
 			.userPassword(PASSWORD_OPEN_SEARCH)
 			.mail("open.search@example.com")
 			.ou("Human Resources")
-		.newRecord("cn=Captain Spock,ou=people,o=TEST")
+		.newRecord(DN_CAPTAIN_SPOCK_PEOPLE_TEST_ORG)
 			.classes("inetOrgPerson")
 			.cn("Captain Spock")
 			.sn(USER_SPOCK)
@@ -41,7 +60,7 @@ class DirectoryInformationTrees {
 			.userPassword(PASSWORD_SPOCK)
 			.mail("spock@example.com")
 			.ou("Human Resources")
-		.newRecord("cn=Kirk,ou=people,o=TEST")
+		.newRecord(DN_KIRK_PEOPLE_TEST_ORG)
 			.classes("inetOrgPerson")
 			.cn("Kirk")
 			.sn("Kirk")
@@ -49,6 +68,37 @@ class DirectoryInformationTrees {
 			.userPassword(PASSWORD_KIRK)
 			.mail("spock@example.com")
 			.ou("Human Resources")
+		.newRecord(DN_CHRISTPHER_PEOPLE_TEST_ORG)
+			.classes("inetOrgPerson")
+			.cn("Christpher")
+			.sn("Christpher")
+			.uid("christpher")
+			.userPassword(PASSWORD_CHRISTPHER)
+			.mail("christpher@example.com")
+			.ou("Human Resources")
+		.newRecord(DN_LEONARD_PEOPLE_TEST_ORG)
+			.classes("inetOrgPerson")
+			.cn("Leonard")
+			.sn("Leonard")
+			.uid(USER_LEONARD)
+			.userPassword(PASSWORD_LEONARD)
+			.mail("leonard@example.com")
+			.ou("Human Resources")
+		.newRecord(DN_GROUPS_TEST_ORG)
+			.ou("groups")
+			.cn("groupsRoot")
+			.classes("groupofuniquenames", "top")
+		.newRecord("cn=admin,ou=groups,o=test.org")
+			.ou("groups")
+			.cn(CN_GROUP_ADMIN)
+			.uniqueMember(DN_KIRK_PEOPLE_TEST_ORG)
+			.classes("groupofuniquenames", "top")
+		.newRecord("cn=crew,ou=groups,o=test.org")
+			.ou("groups")
+			.cn(CN_GROUP_CREW)
+			.uniqueMember(DN_CAPTAIN_SPOCK_PEOPLE_TEST_ORG)
+			.uniqueMember(DN_CHRISTPHER_PEOPLE_TEST_ORG)
+			.classes("groupofuniquenames", "top")
 		.buildRecord()
 		.buildLdif();
 }
