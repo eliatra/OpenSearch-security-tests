@@ -42,22 +42,28 @@ import org.opensearch.test.framework.ldap.EmbeddedLDAPServer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.opensearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.opensearch.client.RequestOptions.DEFAULT;
 import static org.opensearch.rest.RestStatus.FORBIDDEN;
 import static org.opensearch.security.Song.SONGS;
 import static org.opensearch.security.http.DirectoryInformationTrees.CN_GROUP_ADMIN;
+import static org.opensearch.security.http.DirectoryInformationTrees.CN_GROUP_BRIDGE;
 import static org.opensearch.security.http.DirectoryInformationTrees.CN_GROUP_CREW;
 import static org.opensearch.security.http.DirectoryInformationTrees.DN_GROUPS_TEST_ORG;
 import static org.opensearch.security.http.DirectoryInformationTrees.DN_OPEN_SEARCH_PEOPLE_TEST_ORG;
 import static org.opensearch.security.http.DirectoryInformationTrees.DN_PEOPLE_TEST_ORG;
 import static org.opensearch.security.http.DirectoryInformationTrees.LDIF_DATA;
+import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_JEAN;
 import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_KIRK;
 import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_LEONARD;
 import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_OPEN_SEARCH;
 import static org.opensearch.security.http.DirectoryInformationTrees.PASSWORD_SPOCK;
 import static org.opensearch.security.http.DirectoryInformationTrees.USERNAME_ATTRIBUTE;
+import static org.opensearch.security.http.DirectoryInformationTrees.USER_JEAN;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_KIRK;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_LEONARD;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SEARCH;
@@ -79,6 +85,9 @@ public class LdapTlsAuthenticationTest {
 
 	public static final String PERSONAL_INDEX_NAME_SPOCK = "personal-" + USER_SPOCK;
 	public static final String PERSONAL_INDEX_NAME_KIRK = "personal-" + USER_KIRK;
+
+	public static final String POINTER_BACKEND_ROLES = "/backend_roles";
+	public static final String POINTER_ROLES = "/roles";
 
 	public static final String SONG_ID_1 = "l0001";
 	public static final String SONG_ID_2 = "l0002";
@@ -136,13 +145,12 @@ public class LdapTlsAuthenticationTest {
 					.userRoleAttribute(null)
 					.userRoleName("disabled")
 					.roleName("cn")
-					.resolveNestedRoles(false)
+					.resolveNestedRoles(true)
 					.build())))
 		.build();
 
 	@ClassRule
 	public static final RuleChain ruleChain = RuleChain.outerRule(embeddedLDAPServer).around(cluster);
-	public static final String POINTER_BACKEND_ROLES = "/backend_roles";
 
 	@BeforeClass
 	public static void createTestData() {
@@ -217,7 +225,7 @@ public class LdapTlsAuthenticationTest {
 			response.assertStatusCode(200);
 			List<String> backendRoles = response.getTextArrayFromJsonBody(POINTER_BACKEND_ROLES);
 			assertThat(backendRoles, contains(CN_GROUP_CREW));
-			assertThat(response.getTextArrayFromJsonBody("/roles"), contains(ROLE_PERSONAL_INDEX_ACCESS.getName()));
+			assertThat(response.getTextArrayFromJsonBody(POINTER_ROLES), contains(ROLE_PERSONAL_INDEX_ACCESS.getName()));
 		}
 	}
 
@@ -229,7 +237,7 @@ public class LdapTlsAuthenticationTest {
 
 			response.assertStatusCode(200);
 			assertThat(response.getTextArrayFromJsonBody(POINTER_BACKEND_ROLES), contains(CN_GROUP_ADMIN));
-			assertThat(response.getTextArrayFromJsonBody("/roles"), contains(ROLE_INDEX_ADMINISTRATOR.getName()));
+			assertThat(response.getTextArrayFromJsonBody(POINTER_ROLES), contains(ROLE_INDEX_ADMINISTRATOR.getName()));
 		}
 	}
 
@@ -274,6 +282,31 @@ public class LdapTlsAuthenticationTest {
 			SearchRequest request = queryStringQueryRequest(PERSONAL_INDEX_NAME_KIRK, "*");
 
 			assertThatThrownBy(() -> client.search(request, DEFAULT), statusException(FORBIDDEN));
+		}
+	}
+
+	@Test
+	public void shouldResolveNestedGroups_positive() {
+		try (TestRestClient client = cluster.getRestClient(USER_JEAN, PASSWORD_JEAN)) {
+			HttpResponse response = client.getAuthInfo();
+
+			response.assertStatusCode(200);
+			List<String> backendRoles = response.getTextArrayFromJsonBody(POINTER_BACKEND_ROLES);
+			assertThat(backendRoles, hasSize(2));
+			//CN_GROUP_CREW is retrieved recursively: cn=Jean,ou=people,o=test.org -> cn=bridge,ou=groups,o=test.org -> cn=crew,ou=groups,o=test.org
+			assertThat(backendRoles,  containsInAnyOrder(CN_GROUP_CREW, CN_GROUP_BRIDGE));
+			assertThat(response.getTextArrayFromJsonBody(POINTER_ROLES), contains(ROLE_PERSONAL_INDEX_ACCESS.getName()));
+		}
+	}
+
+	@Test
+	public void shouldResolveNestedGroups_negative() {
+		try (TestRestClient client = cluster.getRestClient(USER_KIRK, PASSWORD_KIRK)) {
+			HttpResponse response = client.getAuthInfo();
+
+			response.assertStatusCode(200);
+			List<String> backendRoles = response.getTextArrayFromJsonBody(POINTER_BACKEND_ROLES);
+			assertThat(backendRoles,  not(containsInAnyOrder(CN_GROUP_CREW)));
 		}
 	}
 }

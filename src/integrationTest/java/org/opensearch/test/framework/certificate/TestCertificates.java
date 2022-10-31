@@ -144,7 +144,8 @@ public class TestCertificates {
 	private CertificateData createLdapCertificate() {
 		String subject = "DC=de,L=test,O=node,OU=node,CN=ldap.example.com";
 		CertificateMetadata metadata = CertificateMetadata.basicMetadata(subject, CERTIFICATE_VALIDITY_DAYS)
-			.withKeyUsage(false, DIGITAL_SIGNATURE, NON_REPUDIATION, KEY_ENCIPHERMENT, CLIENT_AUTH, SERVER_AUTH);
+			.withKeyUsage(false, DIGITAL_SIGNATURE, NON_REPUDIATION, KEY_ENCIPHERMENT, CLIENT_AUTH, SERVER_AUTH)
+			.withSubjectAlternativeName(null, List.of("localhost"), "127.0.0.1");
 		return CertificatesIssuerFactory
 			.rsaBaseCertificateIssuer()
 			.issueSignedCertificate(metadata, caCertificate);

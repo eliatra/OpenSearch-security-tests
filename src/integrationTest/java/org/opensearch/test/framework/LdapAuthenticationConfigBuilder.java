@@ -1,3 +1,12 @@
+/*
+* Copyright OpenSearch Contributors
+* SPDX-License-Identifier: Apache-2.0
+*
+* The OpenSearch Contributors require contributions made to
+* this file be licensed under the Apache-2.0 license or a
+* compatible open source license.
+*
+*/
 package org.opensearch.test.framework;
 
 import java.util.HashMap;
@@ -5,6 +14,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+* @param <T> is related to subclasses thus method defined in the class <code>LdapAuthenticationConfigBuilder</code> return proper subclass
+*           type so that all method defined in subclass are available in one of builder superclass method is invoked. Please see
+*           {@link LdapAuthorizationConfigBuilder}
+*/
 public class LdapAuthenticationConfigBuilder<T extends LdapAuthenticationConfigBuilder> {
 	private boolean enableSsl = false;
 	private boolean enableStartTls = false;
