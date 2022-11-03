@@ -37,6 +37,7 @@ import static org.opensearch.security.http.DirectoryInformationTrees.USERNAME_AT
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SEARCH;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SPOCK;
 import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.AUTHC_HTTPBASIC_INTERNAL;
+import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.BASIC_AUTH_DOMAIN_ORDER;
 import static org.opensearch.test.framework.TestSecurityConfig.Role.ALL_ACCESS;
 
 /**
@@ -57,12 +58,12 @@ public class UntrustedLdapServerCertificateTest {
 	public static LocalCluster cluster = new LocalCluster.Builder()
 		.testCertificates(TEST_CERTIFICATES)
 		.clusterManager(ClusterManager.SINGLENODE).anonymousAuth(false)
-		.authc(new AuthcDomain("ldap", 2, true)
+		.authc(new AuthcDomain("ldap", BASIC_AUTH_DOMAIN_ORDER + 1, true)
 			.httpAuthenticator(new HttpAuthenticator("basic").challenge(false))
 			.backend(new AuthenticationBackend("ldap")
 				.config(() -> LdapAuthenticationConfigBuilder.config()
 					// this port is available when embeddedLDAPServer is already started, therefore Supplier interface is used
-					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapsPort()))
+					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapTlsPort()))
 					.enableSsl(true)
 					.bindDn(DN_OPEN_SEARCH_PEOPLE_TEST_ORG)
 					.password(PASSWORD_OPEN_SEARCH)
@@ -79,7 +80,7 @@ public class UntrustedLdapServerCertificateTest {
 	public static RuleChain ruleChain = RuleChain.outerRule(embeddedLDAPServer).around(cluster);
 
 	@Test
-	public void shouldAuthenticateUserWithLdap_positive() {
+	public void shouldNotAuthenticateUserWithLdap() {
 		try (TestRestClient client = cluster.getRestClient(USER_SPOCK, PASSWORD_SPOCK)) {
 			TestRestClient.HttpResponse response = client.getAuthInfo();
 

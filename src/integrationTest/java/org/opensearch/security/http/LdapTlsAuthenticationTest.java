@@ -69,6 +69,7 @@ import static org.opensearch.security.http.DirectoryInformationTrees.USER_LEONAR
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SEARCH;
 import static org.opensearch.security.http.DirectoryInformationTrees.USER_SPOCK;
 import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.AUTHC_HTTPBASIC_INTERNAL;
+import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.BASIC_AUTH_DOMAIN_ORDER;
 import static org.opensearch.test.framework.TestSecurityConfig.Role.ALL_ACCESS;
 import static org.opensearch.test.framework.cluster.SearchRequestFactory.queryStringQueryRequest;
 import static org.opensearch.test.framework.matcher.ExceptionMatcherAssert.assertThatThrownBy;
@@ -108,12 +109,12 @@ public class LdapTlsAuthenticationTest {
 	private static final LocalCluster cluster = new LocalCluster.Builder()
 		.testCertificates(TEST_CERTIFICATES)
 		.clusterManager(ClusterManager.SINGLENODE).anonymousAuth(false)
-		.authc(new AuthcDomain("ldap", 2, true)
+		.authc(new AuthcDomain("ldap", BASIC_AUTH_DOMAIN_ORDER + 1, true)
 			.httpAuthenticator(new HttpAuthenticator("basic").challenge(false))
 			.backend(new AuthenticationBackend("ldap")
 				.config(() -> LdapAuthenticationConfigBuilder.config()
 					// this port is available when embeddedLDAPServer is already started, therefore Supplier interface is used
-					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapsPort()))
+					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapTlsPort()))
 					.enableSsl(true)
 					.bindDn(DN_OPEN_SEARCH_PEOPLE_TEST_ORG)
 					.password(PASSWORD_OPEN_SEARCH)
@@ -132,7 +133,7 @@ public class LdapTlsAuthenticationTest {
 		.authz(new AuthzDomain("ldap_roles").httpEnabled(true).transportEnabled(true)
 			.authorizationBackend(new AuthorizationBackend("ldap")
 				.config(() -> new LdapAuthorizationConfigBuilder()
-					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapsPort()))
+					.hosts(List.of("localhost:" + embeddedLDAPServer.getLdapTlsPort()))
 					.enableSsl(true)
 					.bindDn(DN_OPEN_SEARCH_PEOPLE_TEST_ORG)
 					.password(PASSWORD_OPEN_SEARCH)

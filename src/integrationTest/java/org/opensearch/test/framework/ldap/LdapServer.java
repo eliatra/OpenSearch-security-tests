@@ -42,7 +42,6 @@ import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.schema.Schema;
 import com.unboundid.ldif.LDIFReader;
 import com.unboundid.util.ssl.SSLUtil;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -70,8 +69,8 @@ final class LdapServer {
 	private final AtomicBoolean isStarted = new AtomicBoolean(Boolean.FALSE);
 	private final ReentrantLock serverStateLock = new ReentrantLock();
 
-	private int ldapPort = -1;
-	private int ldapsPort = -1;
+	private int ldapNonTlsPort = -1;
+	private int ldapTlsPort = -1;
 
 
 	public LdapServer(CertificateData trustAnchor, CertificateData ldapCertificate) {
@@ -83,12 +82,12 @@ final class LdapServer {
 		return this.isStarted.get();
 	}
 
-	public int getLdapPort() {
-		return ldapPort;
+	public int getLdapNonTlsPort() {
+		return ldapNonTlsPort;
 	}
 
-	public int getLdapsPort() {
-		return ldapsPort;
+	public int getLdapsTlsPort() {
+		return ldapTlsPort;
 	}
 
 	public void start(LdifData ldifData) throws Exception {
@@ -105,7 +104,7 @@ final class LdapServer {
 		} catch (InterruptedException ioe) {
 			//lock interrupted
 			log.error("LDAP server start lock interrupted", ioe);
-			throw new RuntimeException("LDAP server start lock interrupted", ioe);
+			throw ioe;
 		} finally {
 			if (hasLock) {
 				serverStateLock.unlock();
@@ -125,12 +124,12 @@ final class LdapServer {
 		addLdapCertificatesToKeystore(keyStore);
 		final SSLUtil sslUtil = new SSLUtil(createKeyManager(keyStore), createTrustManagers(keyStore));
 
-		ldapPort = SocketUtils.findAvailableTcpPort();
-		ldapsPort = SocketUtils.findAvailableTcpPort();
+		ldapNonTlsPort = SocketUtils.findAvailableTcpPort();
+		ldapTlsPort = SocketUtils.findAvailableTcpPort();
 
 		Collection<InMemoryListenerConfig> listenerConfigs = new ArrayList<>();
-		listenerConfigs.add(InMemoryListenerConfig.createLDAPConfig("ldap", null, ldapPort, sslUtil.createSSLSocketFactory()));
-		listenerConfigs.add(InMemoryListenerConfig.createLDAPSConfig("ldaps", ldapsPort, sslUtil.createSSLServerSocketFactory()));
+		listenerConfigs.add(InMemoryListenerConfig.createLDAPConfig("ldap", null, ldapNonTlsPort, sslUtil.createSSLSocketFactory()));
+		listenerConfigs.add(InMemoryListenerConfig.createLDAPSConfig("ldaps", ldapTlsPort, sslUtil.createSSLServerSocketFactory()));
 		return listenerConfigs;
 	}
 
@@ -171,10 +170,6 @@ final class LdapServer {
 		config.setEnforceAttributeSyntaxCompliance(false);
 		config.setEnforceSingleStructuralObjectClass(false);
 
-		//config.setLDAPDebugLogHandler(DEBUG_HANDLER);
-		//config.setAccessLogHandler(DEBUG_HANDLER);
-		//config.addAdditionalBindCredentials(configuration.getBindDn(), configuration.getPassword());
-
 		server = new InMemoryDirectoryServer(config);
 
 		try {
@@ -191,7 +186,7 @@ final class LdapServer {
 
 	}
 
-	public void stop() {
+	public void stop() throws InterruptedException {
 		boolean hasLock = false;
 		try {
 			hasLock = serverStateLock.tryLock(LdapServer.LOCK_TIMEOUT, LdapServer.TIME_UNIT);
@@ -206,7 +201,8 @@ final class LdapServer {
 			}
 		} catch (InterruptedException ioe) {
 			//lock interrupted
-			log.debug(ExceptionUtils.getStackTrace(ioe));
+			log.error("Canot stop LDAP server due to interruption", ioe);
+			throw ioe;
 		} finally {
 			if (hasLock) {
 				serverStateLock.unlock();
@@ -216,7 +212,7 @@ final class LdapServer {
 
 	private void loadLdifData(LdifData ldifData) throws Exception {
 		try (LDIFReader r = new LDIFReader(new BufferedReader(new StringReader(ldifData.getContent())))){
-			Entry entry = null;
+			Entry entry;
 			while ((entry = r.readEntry()) != null) {
 				server.add(entry);
 			}
@@ -225,26 +221,4 @@ final class LdapServer {
 			throw e;
 		}
 	}
-
-	/* private static class DebugHandler extends Handler {
-		private final static Logger LOG = LogManager.getLogger(DebugHandler.class);
-
-		@Override
-		public void publish(LogRecord logRecord) {
-		//LOG.debug(ToStringBuilder.reflectionToString(logRecord, ToStringStyle.MULTI_LINE_STYLE));
-		}
-
-		@Override
-		public void flush() {
-
-		}
-
-		@Override
-		public void close() throws SecurityException {
-
-		}
-	}
-
-	private static final DebugHandler DEBUG_HANDLER = new DebugHandler();
-	*/
 }

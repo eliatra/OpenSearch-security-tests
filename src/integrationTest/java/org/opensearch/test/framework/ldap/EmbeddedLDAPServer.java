@@ -39,14 +39,18 @@ public class EmbeddedLDAPServer extends ExternalResource {
 
 	@Override
 	protected void after() {
-		server.stop();
+		try {
+			server.stop();
+		} catch (InterruptedException e) {
+			throw new RuntimeException("Cannot stop LDAP server.", e);
+		}
 	}
 
-	public int getLdapPort() {
-		return server.getLdapPort();
+	public int getLdapNonTlsPort() {
+		return server.getLdapNonTlsPort();
 	}
 
-	public int getLdapsPort() {
-		return server.getLdapsPort();
+	public int getLdapTlsPort() {
+		return server.getLdapsTlsPort();
 	}
 }
