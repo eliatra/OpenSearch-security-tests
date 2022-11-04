@@ -11,8 +11,10 @@ package org.opensearch.security.http;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import org.apache.hc.core5.http.message.BasicHeader;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -82,33 +84,40 @@ import static org.opensearch.test.framework.matcher.SearchResponseMatchers.searc
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class LdapTlsAuthenticationTest {
 
-	public static final String SONG_INDEX_NAME = "song_lyrics";
+	private static final String SONG_INDEX_NAME = "song_lyrics";
 
-	public static final String PERSONAL_INDEX_NAME_SPOCK = "personal-" + USER_SPOCK;
-	public static final String PERSONAL_INDEX_NAME_KIRK = "personal-" + USER_KIRK;
+	private static final String HEADER_NAME_IMPERSONATE = "opendistro_security_impersonate_as";
 
-	public static final String POINTER_BACKEND_ROLES = "/backend_roles";
-	public static final String POINTER_ROLES = "/roles";
+	private static final String PERSONAL_INDEX_NAME_SPOCK = "personal-" + USER_SPOCK;
+	private static final String PERSONAL_INDEX_NAME_KIRK = "personal-" + USER_KIRK;
 
-	public static final String SONG_ID_1 = "l0001";
-	public static final String SONG_ID_2 = "l0002";
-	public static final String SONG_ID_3 = "l0003";
+	private static final String POINTER_BACKEND_ROLES = "/backend_roles";
+	private static final String POINTER_ROLES = "/roles";
+	private static final String POINTER_USERNAME = "/user_name";
+	private static final String POINTER_ERROR_REASON = "/error/reason";
+
+	private static final String SONG_ID_1 = "l0001";
+	private static final String SONG_ID_2 = "l0002";
+	private static final String SONG_ID_3 = "l0003";
 
 	private static final User ADMIN_USER = new User("admin").roles(ALL_ACCESS);
 
 	private static final TestCertificates TEST_CERTIFICATES = new TestCertificates();
 
-	public static final Role ROLE_INDEX_ADMINISTRATOR = new Role("index_administrator").indexPermissions("*").on("*");
-	public static final Role ROLE_PERSONAL_INDEX_ACCESS = new Role("personal_index_access").indexPermissions("*").on("personal-${attr.ldap.uid}");
-
-	public static final String POINTER_USERNAME = "/user_name";
+	private static final Role ROLE_INDEX_ADMINISTRATOR = new Role("index_administrator").indexPermissions("*").on("*");
+	private static final Role ROLE_PERSONAL_INDEX_ACCESS = new Role("personal_index_access").indexPermissions("*").on("personal-${attr.ldap.uid}");
 
 	private static final EmbeddedLDAPServer embeddedLDAPServer = new EmbeddedLDAPServer(TEST_CERTIFICATES.getRootCertificateData(),
 		TEST_CERTIFICATES.getLdapCertificateData(), LDIF_DATA);
 
+	private static final Map<String, Object> USER_IMPERSONATION_CONFIGURATION = Map.of(
+		"plugins.security.authcz.rest_impersonation_user." + USER_KIRK, List.of(USER_SPOCK)
+	);
+
 	private static final LocalCluster cluster = new LocalCluster.Builder()
 		.testCertificates(TEST_CERTIFICATES)
 		.clusterManager(ClusterManager.SINGLENODE).anonymousAuth(false)
+		.nodeSettings(USER_IMPERSONATION_CONFIGURATION)
 		.authc(new AuthcDomain("ldap", BASIC_AUTH_DOMAIN_ORDER + 1, true)
 			.httpAuthenticator(new HttpAuthenticator("basic").challenge(false))
 			.backend(new AuthenticationBackend("ldap")
@@ -308,6 +317,68 @@ public class LdapTlsAuthenticationTest {
 			response.assertStatusCode(200);
 			List<String> backendRoles = response.getTextArrayFromJsonBody(POINTER_BACKEND_ROLES);
 			assertThat(backendRoles,  not(containsInAnyOrder(CN_GROUP_CREW)));
+		}
+	}
+
+	@Test
+	public void shouldImpersonateUser_positive() {
+		try(TestRestClient client = cluster.getRestClient(USER_KIRK, PASSWORD_KIRK)){
+
+			HttpResponse response = client.getAuthInfo(new BasicHeader(HEADER_NAME_IMPERSONATE, USER_SPOCK));
+
+			response.assertStatusCode(200);
+			assertThat(response.getTextFromJsonBody(POINTER_USERNAME), equalTo(USER_SPOCK));
+			List<String> backendRoles = response.getTextArrayFromJsonBody(POINTER_BACKEND_ROLES);
+			assertThat(backendRoles, hasSize(1));
+			assertThat(backendRoles, contains(CN_GROUP_CREW));
+		}
+	}
+
+	@Test
+	public void shouldImpersonateUser_negativeJean() {
+		try(TestRestClient client = cluster.getRestClient(USER_KIRK, PASSWORD_KIRK)){
+
+			HttpResponse response = client.getAuthInfo(new BasicHeader(HEADER_NAME_IMPERSONATE, USER_JEAN));
+
+			response.assertStatusCode(403);
+			String expectedMessage = String.format("'%s' is not allowed to impersonate as '%s'", USER_KIRK, USER_JEAN);
+			assertThat(response.getTextFromJsonBody(POINTER_ERROR_REASON), equalTo(expectedMessage));
+		}
+	}
+
+	@Test
+	public void shouldImpersonateUser_negativeKirk() {
+		try(TestRestClient client = cluster.getRestClient(USER_JEAN, PASSWORD_JEAN)){
+
+			HttpResponse response = client.getAuthInfo(new BasicHeader(HEADER_NAME_IMPERSONATE, USER_KIRK));
+
+			response.assertStatusCode(403);
+			String expectedMessage = String.format("'%s' is not allowed to impersonate as '%s'", USER_JEAN, USER_KIRK);
+			assertThat(response.getTextFromJsonBody(POINTER_ERROR_REASON), equalTo(expectedMessage));
+		}
+	}
+
+	@Test
+	public void shouldAccessImpersonatedUserPersonalIndex_positive() throws IOException {
+		BasicHeader impersonateHeader = new BasicHeader(HEADER_NAME_IMPERSONATE, USER_SPOCK);
+		try(RestHighLevelClient client = cluster.getRestHighLevelClient(USER_KIRK, PASSWORD_KIRK, impersonateHeader)){
+			SearchRequest request = queryStringQueryRequest(PERSONAL_INDEX_NAME_SPOCK, "*");
+
+			SearchResponse searchResponse = client.search(request, DEFAULT);
+
+			assertThat(searchResponse, isSuccessfulSearchResponse());
+			assertThat(searchResponse, numberOfTotalHitsIsEqualTo(1));
+			assertThat(searchResponse, searchHitsContainDocumentWithId(0, PERSONAL_INDEX_NAME_SPOCK, SONG_ID_2));
+		}
+	}
+
+	@Test
+	public void shouldAccessImpersonatedUserPersonalIndex_negative() throws IOException {
+		BasicHeader impersonateHeader = new BasicHeader(HEADER_NAME_IMPERSONATE, USER_SPOCK);
+		try(RestHighLevelClient client = cluster.getRestHighLevelClient(USER_KIRK, PASSWORD_KIRK, impersonateHeader)){
+			SearchRequest request = queryStringQueryRequest(PERSONAL_INDEX_NAME_KIRK, "*");
+
+			assertThatThrownBy(() -> client.search(request, DEFAULT), statusException(FORBIDDEN));
 		}
 	}
 }

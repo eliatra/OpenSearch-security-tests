@@ -35,6 +35,8 @@ import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -98,7 +100,7 @@ public interface OpenSearchClientProvider {
 		return getRestClient(user.getName(), user.getPassword(), headers);
 	}
 
-	default RestHighLevelClient getRestHighLevelClient(String username, String password) {
+	default RestHighLevelClient getRestHighLevelClient(String username, String password, Header... headers) {
 		return getRestHighLevelClient(new UserCredentialsHolder() {
 			@Override
 			public String getName() {
@@ -109,10 +111,15 @@ public interface OpenSearchClientProvider {
 			public String getPassword() {
 				return password;
 			}
-		});
+		}, Arrays.asList(headers));
 	}
 
+
 	default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
+		return getRestHighLevelClient(user, Collections.emptyList());
+	}
+
+	default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user, Collection<? extends Header> defaultHeaders) {
 		InetSocketAddress httpAddress = getHttpAddress();
 		BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
 		credentialsProvider.setCredentials(new AuthScope(null, -1), new UsernamePasswordCredentials(user.getName(), user.getPassword().toCharArray()));
@@ -136,6 +143,7 @@ public interface OpenSearchClientProvider {
 
 			httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
 			httpClientBuilder.setConnectionManager(cm);
+			httpClientBuilder.setDefaultHeaders(defaultHeaders);
 			return httpClientBuilder;
 		};
 
