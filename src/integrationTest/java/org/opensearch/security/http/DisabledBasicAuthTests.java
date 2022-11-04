@@ -14,13 +14,13 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.opensearch.test.framework.TestSecurityConfig;
 import org.opensearch.test.framework.cluster.ClusterManager;
 import org.opensearch.test.framework.cluster.LocalCluster;
 import org.opensearch.test.framework.cluster.TestRestClient;
 import org.opensearch.test.framework.cluster.TestRestClient.HttpResponse;
 
 import static org.apache.hc.core5.http.HttpStatus.SC_UNAUTHORIZED;
-import static org.opensearch.security.http.BasicAuthTests.TEST_USER;
 import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.DISABLED_AUTHC_HTTPBASIC_INTERNAL;
 import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.JWT_AUTH_DOMAIN;
 
@@ -28,16 +28,18 @@ import static org.opensearch.test.framework.TestSecurityConfig.AuthcDomain.JWT_A
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class DisabledBasicAuthTests {
 
+	private static final TestSecurityConfig.User SIMPLE_USER = new TestSecurityConfig.User("simple-user");
+
 	@ClassRule
-	public static LocalCluster cluster = new LocalCluster.Builder()
+	public static final LocalCluster cluster = new LocalCluster.Builder()
 		.clusterManager(ClusterManager.SINGLENODE).anonymousAuth(false)
-		.authc(DISABLED_AUTHC_HTTPBASIC_INTERNAL).users(TEST_USER)
+		.authc(DISABLED_AUTHC_HTTPBASIC_INTERNAL).users(SIMPLE_USER)
 		.authc(JWT_AUTH_DOMAIN)
 		.build();
 
 	@Test
 	public void shouldRespondWith401WhenCredentialsAreCorrectButBasicAuthIsDisabled() {
-		try (TestRestClient client = cluster.getRestClient(TEST_USER)) {
+		try (TestRestClient client = cluster.getRestClient(SIMPLE_USER)) {
 
 			HttpResponse response = client.getAuthInfo();
 

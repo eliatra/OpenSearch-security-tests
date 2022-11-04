@@ -38,6 +38,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.net.ssl.SSLContext;
 
@@ -291,7 +293,13 @@ public class TestRestClient implements AutoCloseable {
 		public String getTextFromJsonBody(String jsonPointer) {        
 			return getJsonNodeAt(jsonPointer).asText();        	
 		}
-		
+
+		public List<String> getTextArrayFromJsonBody(String jsonPointer) {
+			return StreamSupport.stream(getJsonNodeAt(jsonPointer).spliterator(), false)
+				.map(JsonNode::textValue)
+				.collect(Collectors.toList());
+		}
+
 		public int getIntFromJsonBody(String jsonPointer) {        
 			return getJsonNodeAt(jsonPointer).asInt(); 	
 		}

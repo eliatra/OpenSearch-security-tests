@@ -10,7 +10,7 @@
 package org.opensearch.security;
 
 
-class Song {
+public class Song {
 
 	static final String FIELD_TITLE = "title";
 	static final String FIELD_ARTIST = "artist";
@@ -35,7 +35,7 @@ class Song {
 	static final String QUERY_TITLE_POISON = FIELD_TITLE + ":" + TITLE_POISON;
 	static final String QUERY_TITLE_MAGNUM_OPUS = FIELD_TITLE + ":" + TITLE_MAGNUM_OPUS;
 
-	static final Object[][] SONGS = {
+	public static final Object[][] SONGS = {
 		{FIELD_ARTIST, ARTIST_FIRST, FIELD_TITLE, TITLE_MAGNUM_OPUS ,FIELD_LYRICS, LYRICS_1, FIELD_STARS, 1},
 		{FIELD_ARTIST, ARTIST_STRING, FIELD_TITLE, TITLE_SONG_1_PLUS_1, FIELD_LYRICS, LYRICS_2, FIELD_STARS, 2},
 		{FIELD_ARTIST, ARTIST_TWINS, FIELD_TITLE, TITLE_NEXT_SONG, FIELD_LYRICS, LYRICS_3, FIELD_STARS, 3},

@@ -173,10 +173,20 @@ public class TestSecurityConfig {
 		}
 
 		public User roles(Role... roles) {
-			// We scope the role names by user to keep tests free of potential side effects
-			String roleNamePrefix = "user_" + this.name + "__";
-			this.roles.addAll(Arrays.asList(roles).stream().map((r) -> r.clone().name(roleNamePrefix + r.name)).collect(Collectors.toSet()));
+			this.roles.addAll(Arrays.asList(roles).stream()
+				.map((r) -> r.clone().name(getRoleNameInUserScope(r)))
+				.collect(Collectors.toSet()));
 			return this;
+		}
+
+		/**
+		* Created purely for tests purposes. We scope the role names by user to keep tests free of potential side effects.
+		* @param role must not be null
+		* @return role name prefixed with username
+		*/
+		public String getRoleNameInUserScope(Role role) {
+			Objects.requireNonNull(role, "Role is required");
+			return "user_" + this.name + "__" + role.name;
 		}
 
 		public User attr(String key, Object value) {
