@@ -10,6 +10,9 @@
 package org.opensearch.security;
 
 
+import java.util.Map;
+import java.util.Objects;
+
 class Song {
 
 	static final String FIELD_TITLE = "title";
@@ -35,10 +38,46 @@ class Song {
 	static final String QUERY_TITLE_POISON = FIELD_TITLE + ":" + TITLE_POISON;
 	static final String QUERY_TITLE_MAGNUM_OPUS = FIELD_TITLE + ":" + TITLE_MAGNUM_OPUS;
 
-	static final Object[][] SONGS = {
-		{FIELD_ARTIST, ARTIST_FIRST, FIELD_TITLE, TITLE_MAGNUM_OPUS ,FIELD_LYRICS, LYRICS_1, FIELD_STARS, 1},
-		{FIELD_ARTIST, ARTIST_STRING, FIELD_TITLE, TITLE_SONG_1_PLUS_1, FIELD_LYRICS, LYRICS_2, FIELD_STARS, 2},
-		{FIELD_ARTIST, ARTIST_TWINS, FIELD_TITLE, TITLE_NEXT_SONG, FIELD_LYRICS, LYRICS_3, FIELD_STARS, 3},
-		{FIELD_ARTIST, ARTIST_NO, FIELD_TITLE, TITLE_POISON, FIELD_LYRICS, LYRICS_4, FIELD_STARS, 4}
+	private final String artist;
+	private final String title;
+	private final String lyrics;
+	private final Integer stars;
+
+
+	public Song(String artist, String title, String lyrics, Integer stars) {
+		this.artist = Objects.requireNonNull(artist, "Artist is required");
+		this.title = Objects.requireNonNull(title, "Title is required");
+		this.lyrics = Objects.requireNonNull(lyrics, "Lyrics is required");
+		this.stars = Objects.requireNonNull(stars, "Stars field is required");
+	}
+
+	public String getArtist() {
+		return artist;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public String getLyrics() {
+		return lyrics;
+	}
+
+	public Integer getStars() {
+		return stars;
+	}
+
+	public Map<String, Object> asMap() {
+		return Map.of(FIELD_ARTIST, artist,
+				FIELD_TITLE, title,
+				FIELD_LYRICS, lyrics,
+				FIELD_STARS, stars);
+	}
+
+	static final Song[] SONGS = {
+			new Song(ARTIST_FIRST, TITLE_MAGNUM_OPUS, LYRICS_1, 1),
+			new Song(ARTIST_STRING, TITLE_SONG_1_PLUS_1, LYRICS_2, 2),
+			new Song(ARTIST_TWINS, TITLE_NEXT_SONG, LYRICS_3, 3),
+			new Song(ARTIST_NO, TITLE_POISON, LYRICS_4, 4)
 	};
 }
