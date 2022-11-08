@@ -19,8 +19,6 @@ import com.google.common.base.Stopwatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
-import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -78,14 +76,10 @@ import org.opensearch.test.framework.cluster.ClusterManager;
 import org.opensearch.test.framework.cluster.LocalCluster;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.arrayContaining;
-import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
-import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -127,8 +121,15 @@ import static org.opensearch.test.framework.matcher.ClusterMatchers.clusterConta
 import static org.opensearch.test.framework.matcher.ClusterMatchers.clusterContainsSnapshotRepository;
 import static org.opensearch.test.framework.matcher.ClusterMatchers.snapshotInClusterDoesNotExists;
 import static org.opensearch.test.framework.matcher.ExceptionMatcherAssert.assertThatThrownBy;
+import static org.opensearch.test.framework.matcher.FieldCapabilitiesResponseMatchers.containsExactlyIndices;
+import static org.opensearch.test.framework.matcher.FieldCapabilitiesResponseMatchers.containsFieldWithNameAndType;
+import static org.opensearch.test.framework.matcher.FieldCapabilitiesResponseMatchers.numberOfFieldsIsEqualTo;
 import static org.opensearch.test.framework.matcher.GetResponseMatchers.containDocument;
 import static org.opensearch.test.framework.matcher.GetResponseMatchers.documentContainField;
+import static org.opensearch.test.framework.matcher.MultiGetResponseMatchers.isSuccessfulMultiGetResponse;
+import static org.opensearch.test.framework.matcher.MultiGetResponseMatchers.numberOfGetItemResponsesIsEqualTo;
+import static org.opensearch.test.framework.matcher.MultiSearchResponseMatchers.isSuccessfulMultiSearchResponse;
+import static org.opensearch.test.framework.matcher.MultiSearchResponseMatchers.numberOfSearchItemResponsesIsEqualTo;
 import static org.opensearch.test.framework.matcher.OpenSearchExceptionMatchers.errorMessageContain;
 import static org.opensearch.test.framework.matcher.OpenSearchExceptionMatchers.statusException;
 import static org.opensearch.test.framework.matcher.SearchResponseMatchers.containAggregationWithNameAndType;
@@ -535,11 +536,10 @@ public class SearchOperationTest {
 			MultiGetResponse response = restHighLevelClient.mget(request, DEFAULT);
 
 			assertThat(response, is(notNullValue()));
-			MultiGetItemResponse[] responses = response.getResponses();
-			assertThat(responses, arrayWithSize(2));
-			Matcher<MultiGetItemResponse> withNullFailureProperty = hasProperty("failure", nullValue());
-			assertThat(responses, arrayContaining(withNullFailureProperty, withNullFailureProperty));
+			assertThat(response, isSuccessfulMultiGetResponse());
+			assertThat(response, numberOfGetItemResponsesIsEqualTo(2));
 
+			MultiGetItemResponse[] responses = response.getResponses();
 			assertThat(responses[0].getResponse(), allOf(
 				containDocument(SONG_INDEX_NAME, ID_S1),
 				documentContainField(FIELD_TITLE, TITLE_MAGNUM_OPUS))
@@ -571,8 +571,10 @@ public class SearchOperationTest {
 			MultiGetResponse response =  restHighLevelClient.mget(request, DEFAULT);
 
 			assertThat(request, notNullValue());
+			assertThat(response, not(isSuccessfulMultiGetResponse()));
+			assertThat(response, numberOfGetItemResponsesIsEqualTo(2));
+
 			MultiGetItemResponse[] responses = response.getResponses();
-			assertThat(responses, arrayWithSize(2));
 			assertThat(responses, arrayContaining(
 				hasProperty("failure", nullValue()),
 				hasProperty("failure", notNullValue())
@@ -592,14 +594,10 @@ public class SearchOperationTest {
 			MultiSearchResponse response = restHighLevelClient.msearch(request, DEFAULT);
 
 			assertThat(response, notNullValue());
+			assertThat(response, isSuccessfulMultiSearchResponse());
+			assertThat(response, numberOfSearchItemResponsesIsEqualTo(2));
+
 			MultiSearchResponse.Item[] responses = response.getResponses();
-			assertThat(responses, Matchers.arrayWithSize(2));
-			assertThat(responses, arrayContaining(
-				notNullValue(),
-				notNullValue()
-			));
-			assertThat(responses[0].getFailure(), nullValue());
-			assertThat(responses[1].getFailure(), nullValue());
 
 			assertThat(responses[0].getResponse(), searchHitContainsFieldWithValue(0, FIELD_TITLE, TITLE_MAGNUM_OPUS));
 			assertThat(responses[0].getResponse(), searchHitsContainDocumentWithId(0, SONG_INDEX_NAME, ID_S1));
@@ -618,9 +616,10 @@ public class SearchOperationTest {
 			MultiSearchResponse response = restHighLevelClient.msearch(request, DEFAULT);
 
 			assertThat(response, notNullValue());
+			assertThat(response, not(isSuccessfulMultiSearchResponse()));
+			assertThat(response, numberOfSearchItemResponsesIsEqualTo(2));
+
 			MultiSearchResponse.Item[] responses = response.getResponses();
-			assertThat(responses, Matchers.arrayWithSize(2));
-			assertThat(responses, arrayContaining(notNullValue(), notNullValue()));
 			assertThat(responses[0].getFailure(), nullValue());
 			assertThat(responses[1].getFailure(), statusException(INTERNAL_SERVER_ERROR));
 			assertThat(responses[1].getFailure(), errorMessageContain("security_exception"));
@@ -1081,10 +1080,9 @@ public class SearchOperationTest {
 			FieldCapabilitiesResponse response = restHighLevelClient.fieldCaps(request, DEFAULT);
 
 			assertThat(response, notNullValue());
-			assertThat(response.get(), aMapWithSize(1));
-			assertThat(response.getIndices(), arrayWithSize(2));
-			assertThat(response.getField(FIELD_TITLE), hasKey("text"));
-			assertThat(response.getIndices(), arrayContainingInAnyOrder(SONG_INDEX_NAME, PROHIBITED_SONG_INDEX_NAME));
+			assertThat(response, containsExactlyIndices(SONG_INDEX_NAME, PROHIBITED_SONG_INDEX_NAME));
+			assertThat(response, numberOfFieldsIsEqualTo(1));
+			assertThat(response, containsFieldWithNameAndType(FIELD_TITLE, "text"));
 		}
 	}
 
@@ -1105,10 +1103,9 @@ public class SearchOperationTest {
 			FieldCapabilitiesResponse response = restHighLevelClient.fieldCaps(request, DEFAULT);
 
 			assertThat(response, notNullValue());
-			assertThat(response.get(), aMapWithSize(1));
-			assertThat(response.getIndices(), arrayWithSize(1));
-			assertThat(response.getField(FIELD_TITLE), hasKey("text"));
-			assertThat(response.getIndices(), arrayContainingInAnyOrder(SONG_INDEX_NAME));
+			assertThat(response, containsExactlyIndices(SONG_INDEX_NAME));
+			assertThat(response, numberOfFieldsIsEqualTo(1));
+			assertThat(response, containsFieldWithNameAndType(FIELD_TITLE, "text"));
 		}
 	}
 
