@@ -301,7 +301,38 @@ task integrationTest(type: Test) {
     }
     //run the integrationTest task after the test task
     shouldRunAfter test
+
+    jacoco {
+        destinationFile = file("$buildDir/jacoco/integrationTest.exe")
+        excludes = [
+                "com.sun.jndi.dns.*",
+                "com.sun.security.sasl.gsskerb.*",
+                "java.sql.*",
+                "javax.script.*",
+                "org.jcp.xml.dsig.internal.dom.*",
+                "sun.nio.cs.ext.*",
+                "sun.security.ec.*",
+                "sun.security.jgss.*",
+                "sun.security.pkcs11.*",
+                "sun.security.smartcardio.*",
+                "sun.util.resources.provider.*"
+        ]
+    }
 }
+
+task integrationTestJacocoTestReport (type: JacocoReport) {
+    classDirectories.from = jacocoTestReport.classDirectories
+    sourceDirectories.from = jacocoTestReport.sourceDirectories
+    executionData(integrationTest)
+    reports {
+        xml.required = true
+        xml.outputLocation = file("${jacoco.getReportsDirectory().get()}/integrationTest/jacocoTestReport.xml")
+        html.outputLocation = file("${jacoco.getReportsDirectory().get()}/integrationTest/html")
+    }
+}
+
+tasks.integrationTest.finalizedBy(integrationTestJacocoTestReport)  // report is always generated after integrationTests run
+tasks.integrationTestJacocoTestReport.dependsOn(integrationTest) // integrationTests are required to run before generating the report
 
 //run the integrationTest task before the check task
 check.dependsOn integrationTest
